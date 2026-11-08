@@ -191,9 +191,16 @@ svg.panel { width: 100%; height: auto; display: block; border-radius: 10px; }
 }
 .sheet .trig-in { background: var(--trigger-bg); color: var(--trigger-fg); border-radius: 4px; padding: 0 .25em; font-weight: 700; }
 .sheet .kawai { font-size: .65em; color: var(--muted); }
+.sheet .vocal { color: var(--muted); font-style: italic; }   /* Backing-Vocals, gesprochene Einwürfe */
+.sheet .tab {                                                   /* Gitarren-Tabulatur {sot} … {eot} */
+  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .55em; line-height: 1.3;
+  white-space: pre; overflow-x: auto; background: var(--bg2); border-radius: 8px;
+  padding: .5em .7em; margin: .3em 0;
+}
 .sheet .chorus { border-left: 4px solid var(--section); padding-left: .5em; }
 .sheet .pair { display: flex; flex-wrap: wrap; align-items: flex-end; }
 .sheet .seg { display: inline-flex; flex-direction: column; white-space: pre; }
+.sheet .glue { display: inline-flex; align-items: flex-end; }
 .sheet .sc { line-height: 1.15; min-height: 1.15em; padding-right: .3em; }
 .sheet .st { line-height: 1.3; }
 .sheet .ch { color: var(--chord); font-weight: 700; }

@@ -63,20 +63,26 @@ Regler-IDs stehen in `CONTROLS` in `js/panel.js` (z. B. `org-model`, `rot-fast`,
 Chris' Datei „01 Stücke Proben.chopro“ (liegt im claude.ai-Projekt „PIANO-APP“, **nicht** im Repo) enthält 10 Einträge und ist uneinheitlich. Der Parser behandelt:
 - `{new_song}`-Trennung, `{title}`/`{t}`, `{subtitle}`/`{st}`, `{key}`, `{soc}`/`{eoc}`, `{start_of_part}`, `{comment}` (Werbe-/Quellen-Kommentare werden ausgeblendet)
 - Abschnitte als normaler Text: `Verse 1`, `(Chorus)`, `CHORUS:`, `(Intro 4x)`, `(2.Str.)`, `Bridge:` usw.
-- Spielhinweise in Klammern → orange „Trigger“: `(Lauf)`, `(nur Git)`, `(Synth)`, `(bis Este schreit)`, `(1.Umk)`; in Akkordzeilen auch inline `(2T)`, `(Bass)`
+- Spielhinweise in Klammern → orange „Trigger“: `(Lauf)`, `(nur Git)`, `(Synth)`, `(bis Este schreit)`, `(1.Umk)`; in Akkordzeilen auch inline `(2T)`, `(Bass)`. Regel: **bis 4 Wörter** = Trigger, **länger** = Backing-Vocals/Einwurf → grau-kursiv (Zeilentyp `vocal`, CSS `.vocal`)
 - Alte Kawai-Codes wie `11A EFF`, `33C EFFOrgel 70%`, `(33C+11A+11B)` → werden erkannt und ins Feld `kawai` übernommen
 - Medley-Trenner `----Rockin all over----` → Zwischenüberschrift
 - Akkordzeilen über Textzeilen (altes Format) → werden in Inline-Akkorde umgewandelt
 - Taktstriche `| E | A | x2`, auch `INTRO | C | C/E |`
-- Eigene Kürzel: `D2`/`A2` = add2 (gültig, wird transponiert). `D1`, `C-2` (Umkehrungen?) und `G 0` werden **blau als „bitte prüfen“** markiert – Chris will diese **Song für Song gemeinsam klären**, nicht automatisch umwandeln. Übliche Zielschreibweise: Slash-Akkorde (D/F#).
+- Eigene Kürzel (mit Chris am 08.11.2026 geklärt, umgesetzt in `parseChord`/`INV_RE`): **Zahl = Umkehrung.** `C-2` (auch `C 2`) = 2. Umkehrung → Anzeige **C/G**; `D1` (auch `D-1`) = 1. Umkehrung → **D/F#** (Moll: kleine Terz, `Am1` → Am/C); `G 0`/`G0` = Grundstellung → **G**. **Ausnahme:** `D2`/`A2` **ohne Strich** = add2 (D-Dur mit e), keine Umkehrung. Die Original-Version behält Chris' Schreibweise, nur die Anzeige ist Slash-Akkord. Andere unbekannte Kürzel mit Strich (z. B. `C-5`) werden weiter blau als „bitte prüfen“ markiert – neue Kürzel mit Chris klären, nicht raten.
 - Schreibweise der Datei ist gemischt (meist englisch B, bei Westerland H). Eingabe wird als englisch gelesen, `H` als B erkannt; Anzeige standardmäßig deutsch (H, B = Bb).
+
+### Weitere Besonderheiten (aus „Krimikeller 2026.chopro“, OnSong-Setliste)
+- Die Datei ist eine **Auftritts-Setliste** (40 Einträge in Spielreihenfolge) mit leeren Trenner-Einträgen „Pause 😃“, „Pause 2 😃“, „Zugabe 😂😂😂“ → beim Import abgewählt. **Für Stufe 3 (Setlisten) interessant:** Reihenfolge + Pausen ergeben direkt Sets.
+- Viele Songs stammen aus Internet-Vorlagen: Kleinbuchstaben = Moll (`[a]`, `[em]`), deutsche Namen (`Cism`, `Gis`), Tabulatur `{sot}`/`{eot}` (oft jede Saite einzeln), `[Intro]`/`[Chorus 2x]` als Abschnitt, Text in eckigen Klammern (`[guitar stops]`), `[Eb-Bb-Eb]`, `[C#m(x3)]`, `[(x2)]`, `[-]`, `{inline: …}`, `#`-Kommentarzeilen. Die Einordnung macht `bracketKind()` in `js/chordpro.js`.
+- Chris' eigene Notizen in dieser Datei: Kawai-Codes (`22B EFF/ 11A EFF`, `71A EFX`), Hinweise wie „(Key Str+Fargo -1Okt)“, „(Strings linke Hand, leise)“.
+- Bekannter Fehler in der Vorlage: *Uninvited* hat `[D[C#]]` (bleibt blau markiert). *Enter Sandman* hat `{subtitle:Intro}` statt des Interpreten.
 
 ## Stand gegenüber den Anforderungen
 
 **Erledigt (0.1.0):** Songverwaltung mit mehreren Sound-Teilen, Soundvorschläge mit Kurzbeschreibung + Schritt-Anleitung, 5 Bedienfeld-Landkarten mit Hervorhebung (inkl. Zugriegel-Stellungen und Knopfwerten), Sound-Lexikon, Kawai-Feld, Nord-Programmname + „gespeichert“-Haken, ChordPro-Import (Mehrfach-Datei, Zuordnung zu vorhandenen Songs, Tonart-Vorschlag), Leadsheet-Versionen, Transponieren, H/B, Trigger-Hervorhebung, Tipp-Blättern (rechts/links, ca. 2/3 Bildschirm, sanft), Wake Lock, Bühnen-/Vorbereitungsmodus, Schlagworte (feste Liste + eigene) und Dauer-Feld, Backup-Export/-Import, ChordPro-Export, PWA/offline.
 
 **Offen (nach Priorität, mit Chris abstimmen):**
-1. **Echten Import testen** mit Chris' Datei und Feedback einarbeiten (bisher nur mit nachgebauten Beispielzeilen getestet).
+1. **Echten Import testen** – *in Arbeit (0.1.1):* alle 10 Songs der echten Datei werden erkannt und richtig zugeordnet, Darstellungsfehler behoben (siehe CHANGELOG). Entschieden: Klammern bis 4 Wörter = orange Spielhinweis, länger = grau-kursiv (Backing-Vocals). Eigene Kürzel `D1`, `C-2`, `G 0` geklärt und umgesetzt. Auch `Krimikeller 2026.chopro` (40 Einträge) getestet: alle Songs lesbar, keiner läuft seitlich aus dem Bild. Noch offen: Chris prüft die Darstellung auf dem iPad.
 2. **Soundvorschläge am Instrument prüfen** – Werte sind Startpunkte; Piano-/Synth-Modellnamen hängen von der installierten Nord-Library ab.
 3. **Stufe 3 – Setlisten:** beliebig viele, bis zu 4 Sets mit Pausen, Drag & Drop, Spieldauer pro Set/Auftritt, Bühnenansicht folgt der Setlist (bisher blättert ◀/▶ alphabetisch). Merkmale pro Song: Sänger (Este/Bianca/Christian), Tempo/Stimmung, Besetzung, Gitarren-/Piano-/Sängerwechsel.
 4. **KI-Unterstützung** (nur Vorbereitungsmodus, API-Schlüssel nur lokal speichern): Soundvorschlag für neuen Song im `parts`/`steps`-Format, Leadsheet-Aufräumen (Abschnitte, Titel/Interpret korrigieren, Schreibweise vereinheitlichen, Werbung entfernen) mit **Vorschau Original ↔ Ergebnis** und Speichern als neue Version, Setlist-Vorschläge in Blöcken.
@@ -92,8 +98,10 @@ Chris' Datei „01 Stücke Proben.chopro“ (liegt im claude.ai-Projekt „PIANO
 
 ## Testen
 
-- Lokal: im Projektordner `python -m http.server 8000` (falls Python vorhanden) und `http://localhost:8000` öffnen – ein Doppelklick auf `index.html` funktioniert wegen ES-Modulen nicht.
-- Parser-Logik ist reines JS ohne DOM und lässt sich mit Node direkt importieren (`node --input-type=module -e "import('./js/chordpro.js')…"`).
+- Lokal: im Projektordner `node tools/server.js` und `http://localhost:8000` öffnen – ein Doppelklick auf `index.html` funktioniert wegen ES-Modulen nicht. **Python ist auf Chris' PC nicht installiert.** Für Claude Code gibt es `.claude/launch.json` (Name `soultape-stage`).
+- **Node auf Chris' PC ist Version 6** (kann keine ES-Module). Parser deshalb im Browser testen: auf der lokalen Seite `await import('/js/chordpro.js?' + Date.now())` ausführen.
+- Achtung Service Worker: Er liefert auch lokal zuerst aus dem Cache. Nach Code-Änderungen im Test-Browser Registrierung und Caches löschen (`navigator.serviceWorker.getRegistrations()` → `unregister()`, `caches.keys()` → `caches.delete()`).
+- Chris' echte Datei liegt git-ignoriert im Projektordner: `01 Stücke Proben.chopro` (Dateiname in NFD-Schreibweise aus iCloud – in der Shell per `ls ./01*.chopro` ansprechen). Weitere ChordPro-/OnSong-Dateien in `C:\Users\chris\iCloudDrive\OnSong_\` (u. a. `Krimikeller 2026.chopro`). Inhalte nie committen.
 - Oberfläche in iPad-Größe (820 × 1180) prüfen; Bühnenmodus über den Knopf oben rechts.
 
 ## Veröffentlichen (Ablauf für Chris)
