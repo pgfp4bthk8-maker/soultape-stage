@@ -55,3 +55,6 @@ Nach ein bis zwei Minuten ist die App unter `https://<benutzername>.github.io/so
 | `js/panel.js` | Bedienfeld-Landkarten des Nord Electro 7 |
 | `js/chordpro.js` | ChordPro einlesen, darstellen, transponieren |
 | `sw.js` | Offline-Betrieb |
+| `CLAUDE.md` | Übergabe-Infos für Claude Code |
+| `docs/ANFORDERUNGEN.md` | Anforderungsdokument (Version 0.2) |
+| `docs/NORD-ELECTRO-7.md` | Fakten zum Instrument aus dem Handbuch |
