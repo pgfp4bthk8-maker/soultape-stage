@@ -5,7 +5,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey } from './chordpro.js';
 
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.1.1';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -372,7 +372,9 @@ function viewImport() {
       if (!songs.length) { toast('Keine Songs gefunden'); return; }
       ui.importItems = songs.map((x) => {
         const m = matchSong(x.meta.title);
-        return { ...x, target: m ? m.id : 'new', include: true, a: analyze(x.raw), guessed: x.meta.key ? '' : guessKey(x.raw) };
+        const a = analyze(x.raw);
+        // Leere Einträge (Pause, Zugabe …) standardmäßig nicht als Song anlegen
+        return { ...x, target: m ? m.id : 'new', include: !a.empty, a, guessed: x.meta.key ? '' : guessKey(x.raw) };
       });
       viewImport();
     };
@@ -415,6 +417,7 @@ function importPreview(items) {
       <label class="row"><input type="checkbox" data-inc="${i}" ${it.include ? 'checked' : ''} style="width:22px;height:22px">
         <b style="font-size:18px">${esc(it.meta.title || 'Ohne Titel')}</b> <span class="muted">${esc(it.meta.artist)}</span></label>
       <div class="row small">
+        ${it.a.empty ? '<span class="badge">Kein Inhalt – vermutlich Pause/Zugabe einer Setliste (abgewählt)</span>' : ''}
         <span class="badge">Tonart: ${esc(it.meta.key || (it.guessed ? it.guessed + ' (Vorschlag)' : '–'))}</span>
         <span class="badge">${it.a.sections} Abschnitte</span>
         <span class="badge">${it.a.triggers} Hinweise</span>

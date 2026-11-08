@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "soultape-stage",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/server.js"],
+      "port": 8000
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 Bühnen- und Vorbereitungs-App für die Band **SoulTape** – zuerst für das Keyboard (Nord Electro 7 73 HP), später auch für die anderen Bandmitglieder.
 
-**Version:** 0.1.0 (erster Prototyp)
+**Version:** 0.1.1
 
 ## Was die App kann
 
@@ -27,10 +27,10 @@ Songtexte und eigene Daten werden **nur lokal im Browser** gespeichert. Im Repos
 Die App muss über einen kleinen Webserver laufen (ein Doppelklick auf `index.html` reicht nicht). Im Ordner in Git Bash:
 
 ```
-python -m http.server 8000
+node tools/server.js
 ```
 
-Dann im Browser `http://localhost:8000` öffnen.
+Dann im Browser `http://localhost:8000` öffnen. Beenden mit Strg+C. (Alternativ, falls Python installiert ist: `python -m http.server 8000`.)
 
 ## Veröffentlichen (GitHub Pages)
 
