@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.1.2 – 08.11.2026
+- Fehler behoben: Auf dem iPad waren `.chopro`-Dateien beim Import aus iCloud ausgegraut. iOS kennt diese Endung nicht als Dateityp; das Auswahlfeld filtert deshalb nicht mehr nach Endungen. Wird versehentlich eine Nicht-Textdatei (z. B. PDF) gewählt, kommt ein Hinweis.
+
 ## 0.1.1 – 08.11.2026
 Erster Test mit der echten Probe-Datei („01 Stücke Proben.chopro“, 10 Songs).
 - Lange Textzeilen brechen jetzt um, statt rechts aus dem Bildschirm zu laufen; Wörter mit Akkord in der Mitte („trou[D5]ble“) bleiben zusammen

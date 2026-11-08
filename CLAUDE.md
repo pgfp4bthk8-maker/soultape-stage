@@ -82,7 +82,7 @@ Chris' Datei „01 Stücke Proben.chopro“ (liegt im claude.ai-Projekt „PIANO
 **Erledigt (0.1.0):** Songverwaltung mit mehreren Sound-Teilen, Soundvorschläge mit Kurzbeschreibung + Schritt-Anleitung, 5 Bedienfeld-Landkarten mit Hervorhebung (inkl. Zugriegel-Stellungen und Knopfwerten), Sound-Lexikon, Kawai-Feld, Nord-Programmname + „gespeichert“-Haken, ChordPro-Import (Mehrfach-Datei, Zuordnung zu vorhandenen Songs, Tonart-Vorschlag), Leadsheet-Versionen, Transponieren, H/B, Trigger-Hervorhebung, Tipp-Blättern (rechts/links, ca. 2/3 Bildschirm, sanft), Wake Lock, Bühnen-/Vorbereitungsmodus, Schlagworte (feste Liste + eigene) und Dauer-Feld, Backup-Export/-Import, ChordPro-Export, PWA/offline.
 
 **Offen (nach Priorität, mit Chris abstimmen):**
-1. **Echten Import testen** – *in Arbeit (0.1.1):* alle 10 Songs der echten Datei werden erkannt und richtig zugeordnet, Darstellungsfehler behoben (siehe CHANGELOG). Entschieden: Klammern bis 4 Wörter = orange Spielhinweis, länger = grau-kursiv (Backing-Vocals). Eigene Kürzel `D1`, `C-2`, `G 0` geklärt und umgesetzt. Auch `Krimikeller 2026.chopro` (40 Einträge) getestet: alle Songs lesbar, keiner läuft seitlich aus dem Bild. Noch offen: Chris prüft die Darstellung auf dem iPad.
+1. **Echten Import testen** – *in Arbeit (0.1.1):* alle 10 Songs der echten Datei werden erkannt und richtig zugeordnet, Darstellungsfehler behoben (siehe CHANGELOG). Entschieden: Klammern bis 4 Wörter = orange Spielhinweis, länger = grau-kursiv (Backing-Vocals). Eigene Kürzel `D1`, `C-2`, `G 0` geklärt und umgesetzt. Auch `Krimikeller 2026.chopro` (40 Einträge) getestet: alle Songs lesbar, keiner läuft seitlich aus dem Bild. **Erledigt:** 0.1.1 ist veröffentlicht (Tag `v0.1.1`), Chris hat die Darstellung auf dem iPad bestätigt („sieht recht gut aus“). Feinschliff nach Bedarf, wenn ihm beim Proben etwas auffällt.
 2. **Soundvorschläge am Instrument prüfen** – Werte sind Startpunkte; Piano-/Synth-Modellnamen hängen von der installierten Nord-Library ab.
 3. **Stufe 3 – Setlisten:** beliebig viele, bis zu 4 Sets mit Pausen, Drag & Drop, Spieldauer pro Set/Auftritt, Bühnenansicht folgt der Setlist (bisher blättert ◀/▶ alphabetisch). Merkmale pro Song: Sänger (Este/Bianca/Christian), Tempo/Stimmung, Besetzung, Gitarren-/Piano-/Sängerwechsel.
 4. **KI-Unterstützung** (nur Vorbereitungsmodus, API-Schlüssel nur lokal speichern): Soundvorschlag für neuen Song im `parts`/`steps`-Format, Leadsheet-Aufräumen (Abschnitte, Titel/Interpret korrigieren, Schreibweise vereinheitlichen, Werbung entfernen) mit **Vorschau Original ↔ Ergebnis** und Speichern als neue Version, Setlist-Vorschläge in Blöcken.
@@ -94,6 +94,7 @@ Chris' Datei „01 Stücke Proben.chopro“ (liegt im claude.ai-Projekt „PIANO
 **Bekannte Kleinigkeiten:**
 - Song „Zombie“ fehlt noch; Chris liefert weitere Songs/Setlist nach.
 - Daten liegen pro Gerät im Browser; PC → iPad nur über Backup-Datei. Chris regelmäßig an Backups erinnern.
+- **iOS-Dateiauswahl:** Kein `accept=".chopro,…"` an `<input type="file">` setzen – iOS kennt die Endung nicht und graut die Dateien aus (in 0.1.2 behoben). `.json` für Backups funktioniert.
 - Die Landkarten sind vereinfacht; einzelne Beschriftungen (z. B. EQ „MID“) sind angenähert. Fotos des echten Panels liegen im claude.ai-Projekt (IMG_0469/0470).
 
 ## Testen

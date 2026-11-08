@@ -5,7 +5,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey } from './chordpro.js';
 
-export const APP_VERSION = '0.1.1';
+export const APP_VERSION = '0.1.2';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -361,7 +361,8 @@ function viewImport() {
       Beim Import wird nichts überschrieben: Jeder Song bekommt eine neue Version „Original-Import“.</p>
     ${items ? importPreview(items) : `
     <div class="card stack">
-      <input type="file" id="file" accept=".chopro,.cho,.crd,.pro,.txt,text/plain">
+      <!-- Bewusst ohne accept-Filter: iPad/iOS kennt .chopro nicht als Dateityp und graut solche Dateien sonst aus -->
+      <input type="file" id="file">
       <div class="muted small">oder einfügen:</div>
       <textarea id="paste" spellcheck="false" placeholder="{title: …}\n[Am]Text mit [F]Akkorden"></textarea>
       <button class="btn primary" id="analyze">Analysieren</button>
@@ -378,7 +379,19 @@ function viewImport() {
       });
       viewImport();
     };
-    $('#file').onchange = (e) => { const f = e.target.files[0]; if (f) f.text().then(run); };
+    $('#file').onchange = (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      f.text().then((t) => {
+        // Ohne Dateifilter kann man auch PDFs o. Ä. wählen – die erkennt man an Steuerzeichen
+        if (/\u0000|�{3,}/.test(t.slice(0, 4000)) || /^%PDF/.test(t)) {
+          toast('Das ist keine Textdatei. Bitte eine ChordPro-Datei (.chopro, .cho, .txt) wählen.');
+          e.target.value = '';
+          return;
+        }
+        run(t);
+      });
+    };
     $('#analyze').onclick = () => { const t = $('#paste').value; if (t.trim()) run(t); };
     return;
   }
