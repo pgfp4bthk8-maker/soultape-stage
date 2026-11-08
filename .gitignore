@@ -1,0 +1,6 @@
+# Eigene Song-Dateien nie hochladen
+*.chopro
+*.cho
+soultape-backup-*.json
+.DS_Store
+Thumbs.db
