@@ -6,7 +6,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.9';
+export const APP_VERSION = '0.1.10';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -145,11 +145,11 @@ function viewSong(id) {
     <div class="sheetbar">
       <div class="grp" title="Transponieren"><button id="trDown">−</button><span>${tr === 0 ? 'Original' : (tr > 0 ? '+' : '') + tr}<br><b style="color:var(--chord)">${esc(transposeKey(s.key, tr, notation()) || '–')}</b></span><button id="trUp">+</button></div>
       <div class="grp" title="Schriftgröße"><button id="fsDown">A−</button><button id="fsUp">A+</button></div>
-      ${sheet ? `<button class="btn prep-only ${ui.mark ? 'primary' : ''}" id="markBtn">${ui.mark ? 'Fertig' : '⇄ Soundwechsel setzen'}</button>` : ''}
+      ${sheet ? `<button class="btn prep-only ${ui.mark ? 'primary' : ''}" id="markBtn">${ui.mark ? 'Fertig' : '✎ Im Blatt ändern'}</button>` : ''}
       <span class="spacer" style="flex:1"></span>
       ${sheet ? `<span class="badge prep-only">${esc(sheet.name)}</span>` : ''}
     </div>
-    ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf die Zeile, <b>vor</b> der du den Sound wechseln musst. Tippe auf einen vorhandenen Wechsel-Balken, um ihn zu ändern oder zu entfernen. Dein Original bleibt erhalten – die Wechsel landen in einer eigenen Version „Mit Soundwechseln“.</div>' : ''}
+    ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
     <div class="sheet${ui.mark ? ' marking' : ''}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
       `<p class="muted" style="font-size:17px">Noch kein Leadsheet. <span class="prep-only">Unter <a href="#/import">Leadsheets importieren</a> kannst du deine ChordPro-Datei einlesen.</span></p>`}</div>
     <div class="songnav">
@@ -224,13 +224,13 @@ function glide(dy) {
 // ---------- Soundwechsel im Leadsheet setzen (nur Vorbereitung) ----------
 /**
  * Ändert den Rohtext der aktiven Version. Das Original wird nie überschrieben:
- * Beim ersten Wechsel entsteht eine Kopie „Mit Soundwechseln“, weitere Wechsel landen in dieser Kopie.
+ * Bei der ersten Änderung entsteht eine Kopie „Arbeitsfassung“ (sheet.marks), weitere Änderungen landen in dieser Kopie.
  */
 function editMarks(s, change) {
   let v = activeSheet(s);
   if (!v) return;
   if (!v.marks) {
-    v = addSheet(s, `Mit Soundwechseln ${fmtDate(new Date().toISOString())}`, v.text, true);
+    v = addSheet(s, `Arbeitsfassung ${fmtDate(new Date().toISOString())}`, v.text, true);
     v.marks = true;
   }
   const lines = v.text.replace(/\r\n?/g, '\n').split('\n');
@@ -239,26 +239,36 @@ function editMarks(s, change) {
   persist();
 }
 
-/** Blendet über der angetippten Zeile ein Feld ein, um einen Wechsel zu setzen, zu ändern oder zu entfernen. */
+/**
+ * Blendet über der angetippten Zeile ein Feld ein: Zeile direkt ändern (z. B. falscher Akkord),
+ * davor einen Soundwechsel setzen oder einen vorhandenen Wechsel ändern/entfernen.
+ */
 function openMarkBox(s, ln) {
   const old = $('#sheet .markbox'); if (old) old.remove();
-  const src = +ln.dataset.src;
+  const src = +ln.dataset.src, n = +ln.dataset.n || 1;
   const isSwitch = ln.classList.contains('switch');
   const lines = activeSheet(s).text.replace(/\r\n?/g, '\n').split('\n');
   const cur = isSwitch ? (switchText(lines[src]) || '') : '';
+  const raw = lines.slice(src, src + n).join('\n');
   const partChips = (s.parts || []).length > 1 ? s.parts.map((p) => p.name).filter(Boolean) : [];
   const chips = [...partChips, 'Piano AN', 'Piano AUS', 'Orgel AN', 'Orgel AUS', 'Synth AN', 'Synth AUS', 'Rotary schnell', 'Rotary langsam'];
-  const box = document.createElement('div');
-  box.className = 'markbox card stack';
-  box.innerHTML = `
-    <b>${isSwitch ? 'Soundwechsel ändern' : 'Soundwechsel vor dieser Zeile'}</b>
+  const switchForm = `
     <div class="small muted">Was musst du tun? Für einen Programmwechsel den Speicherplatz zuerst schreiben, z. B. „M 24 Orgel“. Sonst antippen oder frei eintragen, z. B. „Synth AN“.</div>
     <div class="row">${chips.map((c) => `<span class="chip" data-chip="${esc(c)}">${esc(c)}</span>`).join('')}</div>
     <input type="text" id="markText" value="${esc(cur)}" placeholder="z. B. M 24 Orgel  oder  Synth AN">
-    <div class="row"><button class="btn primary" id="markSet">${isSwitch ? 'Ändern' : 'Setzen'}</button>
-      ${isSwitch ? '<button class="btn danger" id="markDel">Entfernen</button>' : ''}
-      <button class="btn ghost" id="markCancel">Abbrechen</button></div>`;
+    <div class="row"><button class="btn ${isSwitch ? 'primary' : ''}" id="markSet">${isSwitch ? 'Ändern' : 'Wechsel setzen'}</button>
+      ${isSwitch ? '<button class="btn danger" id="markDel">Entfernen</button>' : ''}</div>`;
+  const box = document.createElement('div');
+  box.className = 'markbox card stack';
+  box.innerHTML = isSwitch ? `<b>Soundwechsel ändern</b>${switchForm}
+    <div class="row"><button class="btn ghost" id="markCancel">Abbrechen</button></div>` : `
+    <b>Zeile ändern</b>
+    <div class="small muted">Akkorde stehen in eckigen Klammern vor der Silbe, z. B. <code>[Am]Text [F]weiter</code>. Feld leeren und speichern = Zeile löschen. Eine zusätzliche Zeile im Feld fügt eine neue Zeile ein.</div>
+    <textarea id="lineText" rows="${Math.max(2, n + 1)}" spellcheck="false" autocapitalize="off" autocorrect="off">${esc(raw)}</textarea>
+    <div class="row"><button class="btn primary" id="lineSave">Speichern</button><button class="btn ghost" id="markCancel">Abbrechen</button></div>
+    <details><summary>⇄ Soundwechsel vor dieser Zeile setzen</summary><div class="stack" style="margin-top:10px">${switchForm}</div></details>`;
   ln.before(box);
+  const done = (change) => { editMarks(s, change); viewSongKeepScroll(s.id); };
   const inp = $('#markText', box);
   box.querySelectorAll('[data-chip]').forEach((c) => c.onclick = () => {
     inp.value = inp.value.trim() ? `${inp.value.trim()}, ${c.dataset.chip}` : c.dataset.chip;
@@ -267,11 +277,16 @@ function openMarkBox(s, ln) {
   $('#markSet', box).onclick = () => {
     const t = inp.value.trim();
     if (!t) { inp.focus(); return; }
-    editMarks(s, (l) => { if (isSwitch) l[src] = switchLine(t); else l.splice(src, 0, switchLine(t)); });
-    viewSongKeepScroll(s.id);
+    done((l) => { if (isSwitch) l[src] = switchLine(t); else l.splice(src, 0, switchLine(t)); });
   };
   const del = $('#markDel', box);
-  if (del) del.onclick = () => { editMarks(s, (l) => l.splice(src, 1)); viewSongKeepScroll(s.id); };
+  if (del) del.onclick = () => done((l) => l.splice(src, 1));
+  const save = $('#lineSave', box);
+  if (save) save.onclick = () => {
+    const t = $('#lineText', box).value.replace(/\r\n?/g, '\n').replace(/\s+$/, '');
+    if (t === raw.replace(/\s+$/, '')) { box.remove(); return; }   // nichts geändert → keine neue Version
+    done((l) => l.splice(src, n, ...(t ? t.split('\n') : [])));
+  };
 }
 
 function viewSongKeepScroll(id) {

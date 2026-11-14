@@ -372,7 +372,7 @@ export function parseSheet(raw) {
         const segs = [];
         if (pos[0].col > 0) segs.push({ chord: null, text: lyr.slice(0, pos[0].col) });
         pos.forEach((p, k) => segs.push({ chord: p.chord, text: lyr.slice(p.col, k + 1 < pos.length ? pos[k + 1].col : undefined) }));
-        push({ type: 'lyric', segs });
+        push({ type: 'lyric', segs, span: 2 });   // Akkordzeile + Textzeile = zwei Zeilen im Rohtext
         i++;
         continue;
       }
@@ -454,6 +454,7 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
         const block = [];
         while (i < rows.length && rows[i].type === 'tab') block.push(esc(rows[i++].text));
         i--;
+        r.span = rows[i].src - r.src + 1;
         html.push(`<pre class="ln tab">${block.join('\n')}</pre>`);
         break;
       }
@@ -500,7 +501,7 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
         break;
       }
     }
-    if (html.length > before && r.src !== undefined) html[before] = html[before].replace(/^<(div|pre) /, `<$1 data-src="${r.src}" `);
+    if (html.length > before && r.src !== undefined) html[before] = html[before].replace(/^<(div|pre) /, `<$1 data-src="${r.src}" data-n="${r.span || 1}" `);
   }
   return html.join('');
 }

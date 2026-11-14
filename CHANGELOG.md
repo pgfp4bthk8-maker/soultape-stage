@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.10 – 14.11.2026
+- **Zeilen direkt im Blatt ändern:** Im Vorbereitungsmodus über dem Leadsheet „✎ Im Blatt ändern“ antippen, dann auf die Zeile tippen. Genau dort klappt ein Feld mit dem Text dieser Zeile auf – zum Beispiel, um in der Probe einen falschen Akkord zu korrigieren, ohne die Stelle im Editor suchen zu müssen. Feld leeren = Zeile löschen, zusätzliche Zeile im Feld = neue Zeile.
+- Der Soundwechsel sitzt jetzt im selben Feld (aufklappbar „⇄ Soundwechsel vor dieser Zeile setzen“); der bisherige Knopf „⇄ Soundwechsel setzen“ heißt deshalb „✎ Im Blatt ändern“.
+- Das Original bleibt wie immer erhalten: Die erste Änderung legt eine Kopie „Arbeitsfassung“ an, alle weiteren Änderungen landen in dieser Kopie. Speichern ohne Änderung legt nichts an.
+
 ## 0.1.9 – 14.11.2026
 - **NDW-Medley** hat jetzt echte Soundvorschläge statt des Platzhalters – für alle vier Songs: Irgendwie, irgendwo, irgendwann (Nena), Alles nur geklaut (Die Prinzen), Major Tom (Peter Schilling), Sternenhimmel (Hubert Kah).
 - Aufbau für wenig Umbau im Medley: ein Programm für die ersten drei Songs (80er-Synth „1984 Brass“ und heller Flügel – du schaltest nur Piano und Synth an und aus), ein zweites Programm mit Synth-Lead für Sternenhimmel.

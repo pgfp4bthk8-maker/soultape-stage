@@ -209,6 +209,8 @@ svg.panel { width: 100%; height: auto; display: block; border-radius: 10px; }
 .sheet.marking .ln[data-src] { cursor: pointer; border-top: 2px dashed transparent; }
 .sheet.marking .ln[data-src]:not(.empty):hover { border-top-color: var(--switch-bg); }
 .sheet .markbox { font-size: 16px; margin: 10px 0; border: 2px solid var(--switch-bg); user-select: auto; -webkit-user-select: auto; }
+.sheet .markbox textarea { min-height: 0; font-size: 18px; width: 100%; }
+.sheet .markbox summary { cursor: pointer; padding: 6px 0; color: var(--muted); }
 .sheet .kawai { font-size: .65em; color: var(--muted); }
 .sheet .vocal { color: var(--muted); font-style: italic; }   /* Backing-Vocals, gesprochene Einwürfe */
 .sheet .tab {                                                   /* Gitarren-Tabulatur {sot} … {eot} */
