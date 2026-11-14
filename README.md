@@ -2,7 +2,7 @@
 
 Bühnen- und Vorbereitungs-App für die Band **SoulTape** – zuerst für das Keyboard (Nord Electro 7 73 HP), später auch für die anderen Bandmitglieder.
 
-**Version:** 0.1.7
+**Version:** 0.1.8
 
 ## Was die App kann
 
@@ -12,6 +12,7 @@ Bühnen- und Vorbereitungs-App für die Band **SoulTape** – zuerst für das Ke
 - **Nord-Programmname** und **alter Kawai-Sound** pro Song
 - **Leadsheets im ChordPro-Format**: Import (auch mehrere Songs pro Datei), Akkorde über dem Text, Abschnitte farbig, Spielhinweise wie „(Lauf)“ orange hervorgehoben
 - **Soundwechsel-Marken** im Leadsheet: auffälliger Balken an der Stelle, an der am Nord das Programm gewechselt oder eine Sektion ein-/ausgeschaltet wird
+- **Setlisten und Probenlisten**: Reihenfolge per Finger ändern, Sets mit Pausen und Spieldauer, „Stand festhalten“, die Bühnenansicht blättert in Listen-Reihenfolge
 - **Versionen**: Das importierte Original bleibt immer erhalten, Änderungen werden als neue Version gespeichert
 - **Transponieren** und deutsche (H) oder englische (B) Akkord-Schreibweise
 - **Bühnenmodus**: große Schrift, Tippen rechts/links blättert sanft weiter/zurück, Bildschirm bleibt an
