@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.4 – 14.11.2026
+- Die Anleitungen nennen jetzt die genauen Klangnamen vom eigenen Nord (z. B. „EP1 Deep Timbre“ statt „ein Rhodes“, „OrchStrings Legato“ statt „Strings“), dazu jeweils zwei, drei Alternativen zum Ausprobieren. Grundlage ist die Liste aus dem Nord Sound Manager (File → Export Sound Lists, Stand 14.11.2026).
+- Sound-Lexikon: Bei jedem Klang steht „Auf deinem Nord installiert“ mit den passenden Namen.
+- Bereits eingetragene Soundvorschläge werden beim ersten Start still aktualisiert – aber nur, wenn du sie nicht selbst geändert hast.
+
 ## 0.1.3 – 14.11.2026
 - Soundvorschläge für alle 37 Songs der Setliste „Krimikeller 2026“ (z. B. Californication, Narcotic, The Final Countdown) – mit Kurzbeschreibung, Schritt-Anleitung und Spieltipp. Grundlage sind das Original und die eigenen Notizen aus der Setliste. Wo das Original keine Tasten hat, steht das dabei.
 - Die Vorschläge kommen auch bei importierten Songs an: Die App erkennt sie am Titel. Beim ersten Start nach dem Update werden sie still nachgetragen – nur bei Songs, die noch keinen Soundvorschlag haben. Eigene Eintragungen und Leadsheets bleiben unberührt.

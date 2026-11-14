@@ -93,6 +93,8 @@ Chris' Datei „01 Stücke Proben.chopro“ (liegt im claude.ai-Projekt „PIANO
 
 **Bekannte Kleinigkeiten:**
 - Seit 0.1.3 haben alle 37 Songs der Krimikeller-Setliste Soundvorschläge in `SEED_SONGS` (47 Einträge). `refreshSeeds()` in `js/store.js` ordnet sie importierten Songs über den Titel zu und füllt nur Songs ohne Sound; bei höherer `SEED_VERSION` passiert das still beim Start. **NDW-Medley ist nur ein Platzhalter** – Chris fragen, welche Songs darin stecken. Die Kawai-Codes (`11A`, `33C` …) sind nicht entschlüsselt.
+- Seit 0.1.4 nennen die Anleitungen die genauen Klangnamen von Chris' Nord (`NORD_HAS`, `NORD_PIANO`, `NORD_SYNTH` in `js/data.js`). Quelle: Nord Sound Manager → File → **Export Sound Lists** → vier HTML-Dateien (Piano, Samp Lib, Synth Preset, Program) in `C:\Users\chris\OneDrive\Dokumente\Nord Electro 7 … 2026-11-14.html`. Bei neuen Klängen neu exportieren lassen. Die Program-Liste zeigt: Chris hat für fast alle Songs schon Programmplätze (Bank M, N, O, P; „M11“ in seinen Notizen = Bank M, Programm 11) – viele in Bank O sehen aber nach leeren Platzhaltern aus. Noch nicht in der App abgebildet.
+- Geänderte Startvorschläge erreichen vorhandene Songs nur, wenn der Nutzer sie nicht selbst geändert hat (`seedMark`/`untouched()` in `js/store.js`); dazu `SEED_VERSION` hochzählen.
 - Daten liegen pro Gerät im Browser; PC → iPad nur über Backup-Datei. Chris regelmäßig an Backups erinnern.
 - **iOS-Dateiauswahl:** Kein `accept=".chopro,…"` an `<input type="file">` setzen – iOS kennt die Endung nicht und graut die Dateien aus (in 0.1.2 behoben). `.json` für Backups funktioniert.
 - Die Landkarten sind vereinfacht; einzelne Beschriftungen (z. B. EQ „MID“) sind angenähert. Fotos des echten Panels liegen im claude.ai-Projekt (IMG_0469/0470).

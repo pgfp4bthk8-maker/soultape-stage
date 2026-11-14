@@ -146,6 +146,23 @@ export function importBackup(text) {
 /** Hat der Song schon einen Soundvorschlag (oder eigene Eintragungen)? */
 const hasSound = (s) => (s.parts || []).some((p) => p.lex || p.summary || p.tips || (p.steps && p.steps.length));
 
+/** Kurzer Fingerabdruck eines Soundvorschlags – damit erkennt die App, ob du ihn selbst geändert hast. */
+function mark(parts) {
+  const t = JSON.stringify(parts || []);
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
+/** Aufbau eines Vorschlags ohne die Texte (Teile, Regler, Werte). */
+const shape = (parts) => JSON.stringify((parts || []).map((p) => [p.name, p.summary, (p.steps || []).map((x) => [x.s, x.c, x.sel, x.val, x.drawbars])]));
+
+/**
+ * Stammt der Soundvorschlag noch unverändert aus den Startdaten?
+ * Mit Fingerabdruck: exakter Vergleich. Ohne (Stand vor 0.1.4): gleicher Aufbau wie der Startvorschlag.
+ */
+const untouched = (s, seed) => (s.seedMark ? mark(s.parts) === s.seedMark : shape(s.parts) === shape(seed.parts));
+
 /** Sucht zu einem Startsong den vorhandenen Song – auch wenn er per Import (mit anderer ID) angelegt wurde. */
 function findForSeed(seed) {
   const byId = getSong(seed.id);
@@ -173,14 +190,16 @@ function findForSeed(seed) {
  */
 export function refreshSeeds({ overwriteSounds = false, addMissing = true } = {}) {
   let added = 0, updated = 0, filled = 0;
+  const setParts = (s, seed) => { s.parts = clone(seed.parts); s.seedMark = mark(s.parts); };
   for (const seed of SEED_SONGS) {
     const s = findForSeed(seed);
     if (!s) {
-      if (addMissing) { state.songs.push(clone(seed)); added++; }
+      if (addMissing) { const n = clone(seed); n.seedMark = mark(n.parts); state.songs.push(n); added++; }
       continue;
     }
-    if (overwriteSounds) { s.parts = clone(seed.parts); updated++; }
-    else if (!hasSound(s)) { s.parts = clone(seed.parts); filled++; }
+    if (overwriteSounds) { setParts(s, seed); updated++; }
+    else if (!hasSound(s)) { setParts(s, seed); filled++; }
+    else if (untouched(s, seed) && mark(s.parts) !== mark(seed.parts)) { setParts(s, seed); filled++; }
     if (!s.artist && seed.artist) s.artist = seed.artist;
     if (!s.key && seed.key) s.key = seed.key;
     if (!(s.tags && s.tags.length) && seed.tags.length) s.tags = [...seed.tags];

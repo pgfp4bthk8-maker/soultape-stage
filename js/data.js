@@ -5,7 +5,7 @@
 // Alle Einstellwerte sind Startpunkte (Skala 0–10 wie auf den Reglern).
 // Im Proberaum mit der Band prüfen und nach Gehör anpassen.
 
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
 
 // ---------- Sound-Lexikon ----------
 export const LEXICON = [
@@ -59,6 +59,52 @@ export const LEXICON = [
     tip: 'VOICE MODE auf MONO oder LEGATO, eventuell etwas GLIDE.' },
 ];
 
+// ---------- „Mein Nord“: was auf Chris' Nord Electro 7 installiert ist ----------
+// Quelle: Nord Sound Manager → File → Export Sound Lists (Stand 14.11.2026).
+// Bei neuen Klängen auf dem Instrument die Liste neu exportieren und hier anpassen.
+const NORD_HAS = {
+  grand: ['Kategorie Grand: White Grand, Astoria Grand, Royal Grand 3D, Studio Grand 2'],
+  upright: ['Kategorie Upright: Amber Upright, Felt Upright, Pearl Upright, Bambino Upright'],
+  egrand: ['Kategorie Grand: EGrand 3'],
+  rhodes: ['Kategorie Electric: EP1 Deep Timbre, EP2 Ideal Timbre, EP3 Shallow Close, EP5 BrightTines, EP6 Sparkletop, EP8 Nefertiti, EP9 Stockholm'],
+  wurli: ['Kategorie Electric: Wurlitzer 1, Wurlitzer 2'],
+  clav: ['Kategorie Clavinet: Clavinet D6'],
+  pad: ['ANALOG: Soft Pad 1, Cotton Pad, Sweet Pad, Silk Pad', 'SAMPLES, Kategorie Synth Pad: Sweet Saw Pad 1, Sweet Saw Pad 2, Super M Pad'],
+  strings: ['SAMPLES, Kategorie Strings Ensemble: OrchStrings Legato, Cinematic Strings Leg, Spitfire String Quintet, SymphStr XSoft Amb, Pop Strings'],
+  brass: ['ANALOG: 1984 Brass, Rich Brass, Brilliant Brass', 'SAMPLES, Kategorie Brass Ensemble: Supreme Soul, Brass Section Pop 3', 'SAMPLES, Kategorie Brass Solo: Trumpet'],
+  lead: ['ANALOG: Uni Saw Lead, Detune Saw Lead, Super Lead, Big Supersaw', 'SAMPLES, Kategorie Synth Lead: Triple Saw Lead 1, Massive Lead'],
+};
+LEXICON.forEach((l) => { l.nord = NORD_HAS[l.id] || []; });
+
+// Standard-Klang je Piano-Kategorie und weitere Möglichkeiten zum Ausprobieren
+const NORD_PIANO = {
+  Grand: { name: 'White Grand', alt: 'Astoria Grand, Royal Grand 3D' },
+  Upright: { name: 'Amber Upright', alt: 'Pearl Upright, Felt Upright' },
+  Electric: { name: 'EP1 Deep Timbre', alt: 'EP2 Ideal Timbre, EP9 Stockholm' },
+  Clavinet: { name: 'Clavinet D6', alt: '' },
+};
+
+// Standard-Klang der Synth-Sektion je Bereich (SAMPLES/ANALOG) und Klangart
+const NORD_SYNTH = {
+  'SAMPLES/Strings': { bank: 'Strings Ensemble', name: 'OrchStrings Legato', alt: 'Cinematic Strings Leg, Spitfire String Quintet' },
+  'SAMPLES/Pad': { bank: 'Synth Pad', name: 'Sweet Saw Pad 2', alt: 'Sweet Saw Pad 1, Super M Pad' },
+  'SAMPLES/Brass': { bank: 'Brass Solo', name: 'Trumpet', alt: 'Kategorie Brass Ensemble: Supreme Soul' },
+  'SAMPLES/Choir': { bank: 'Choir', name: 'Men+Women Ah', alt: 'Men+Boys Oo' },
+  'ANALOG/Pad': { name: 'Soft Pad 1', alt: 'Cotton Pad, Sweet Pad, Silk Pad' },
+  'ANALOG/Brass': { name: '1984 Brass', alt: 'Rich Brass, Brilliant Brass' },
+  'ANALOG/Lead': { name: 'Uni Saw Lead', alt: 'Detune Saw Lead, Super Lead, Big Supersaw' },
+};
+
+const synthPick = (type, cat, name) => {
+  const n = NORD_SYNTH[`${type}/${cat}`] || {};
+  const pick = name || n.name;
+  const alt = !name && n.alt ? ` Zum Ausprobieren auch: ${n.alt}.` : '';
+  if (!pick) return `Kategorie „${cat}“ wählen und mit dem Rad einen Klang aussuchen. Rad drücken = bestätigen.`;
+  return n.bank
+    ? `Kategorie „${n.bank}“ wählen und mit dem Rad den Klang „${pick}“ aussuchen. Rad drücken = bestätigen.${alt}`
+    : `Mit dem Rad den Klang „${pick}“ aussuchen. Rad drücken = bestätigen.${alt}`;
+};
+
 // ---------- Bausteine für Anleitungen ----------
 const S = (s, c, t, extra = {}) => ({ s, c, t, ...extra });
 
@@ -99,23 +145,23 @@ const organB3 = ({ drawbars, drive = 3, perc = false, level = 7 }) => [
 ];
 
 const piano = ({ cat, model, timbre = 'MID', level = 7, extra = '' }) => [
-  S('piano', 'pno-library', `PIANO LIBRARY-Rad drücken und Kategorie „${cat}“ wählen, dann mit dem Rad ein Modell aussuchen${model ? ` (z. B. ${model})` : ''}. Die genauen Namen hängen davon ab, welche Pianos auf deinem Nord installiert sind.`),
+  S('piano', 'pno-library', `PIANO LIBRARY-Rad drücken und Kategorie „${cat}“ wählen, dann mit dem Rad „${model || NORD_PIANO[cat].name}“ aussuchen.${!model && NORD_PIANO[cat].alt ? ` Zum Ausprobieren auch: ${NORD_PIANO[cat].alt}.` : ''}`),
   S('piano', 'pno-timbre', `TIMBRE auf ${timbre}.${extra ? ' ' + extra : ''}`, { sel: timbre }),
   S('piano', 'pno-level', `LEVEL auf ca. ${level}.`, { val: level }),
 ];
 
-const synthPad = ({ type = 'SAMPLES', cat = 'Pad', level = 4, attack = 3, release = 5 }) => [
+const synthPad = ({ type = 'SAMPLES', cat = 'Pad', name, level = 4, attack = 3, release = 5 }) => [
   S('synth', 'syn-libtype', `SOUND LIBRARY-Rad drücken und ${type} wählen (Soft-Taste unter dem Display).`, { sel: type }),
-  S('synth', 'syn-library', `Kategorie „${cat}“ wählen und mit dem Rad einen Klang aussuchen. Rad drücken = bestätigen.`),
+  S('synth', 'syn-library', synthPick(type, cat, name)),
   S('synth', 'syn-attack', `ATTACK auf ca. ${attack}, damit der Klang weich einschwebt.`, { val: attack }),
   S('synth', 'syn-release', `RELEASE auf ca. ${release}, damit er sanft ausklingt.`, { val: release }),
   S('synth', 'syn-level', `LEVEL auf ca. ${level} – die Fläche bleibt im Hintergrund.`, { val: level }),
 ];
 
 // Kurze, sofort hörbare Synth-Klänge (Bläser-Akzente, Riffs). mono = einstimmig für Melodien.
-const synthHit = ({ type = 'ANALOG', cat = 'Brass', level = 6, release = 2, mono = false }) => [
+const synthHit = ({ type = 'ANALOG', cat = 'Brass', name, level = 6, release = 2, mono = false }) => [
   S('synth', 'syn-libtype', `SOUND LIBRARY-Rad drücken und ${type} wählen (Soft-Taste unter dem Display).`, { sel: type }),
-  S('synth', 'syn-library', `Kategorie „${cat}“ wählen und mit dem Rad einen Klang aussuchen. Rad drücken = bestätigen.`),
+  S('synth', 'syn-library', synthPick(type, cat, name)),
   ...(mono ? [S('synth', 'syn-voice', 'VOICE MODE auf MONO – einstimmig, so klingen Melodien sauber.', { sel: 'MONO' })] : []),
   S('synth', 'syn-attack', 'ATTACK auf 0 – der Klang ist sofort da.', { val: 0 }),
   S('synth', 'syn-release', `RELEASE auf ca. ${release} – kurz, damit Akzente knackig bleiben.`, { val: release }),
@@ -249,7 +295,7 @@ export const SEED_SONGS = [
         summary: 'Trockenes Soul-Klavier (Upright), direkt und rhythmisch.',
         steps: [...sectionsOnly(['piano']), ...piano({ cat: 'Upright', timbre: 'MID', level: 7 }),
           focus('PNO'), ...reverb('ROOM', 1), ...store('Hit the Road Jack')],
-        tips: 'Alternative zum Ausprobieren: Wurlitzer (Kategorie Electric) mit leichtem Tremolo – das ist der Ray-Charles-Sound von „What’d I Say“.' },
+        tips: 'Alternative zum Ausprobieren: Wurlitzer (Kategorie Electric, „Wurlitzer 1“) mit leichtem Tremolo – das ist der Ray-Charles-Sound von „What’d I Say“.' },
     ],
   }),
   song({
@@ -263,7 +309,7 @@ export const SEED_SONGS = [
         steps: [...sectionsOnly(['piano']), ...piano({ cat: 'Upright', timbre: 'BRIGHT', level: 7 }),
           focus('PNO'), ...reverb('ROOM', 2),
           S('organ', 'org-model', 'Für später schon vorbereiten: Orgel auf B3 stellen, Zugriegel 888000000, LEVEL ca. 5 – Orgel-Sektion danach wieder AUS.', { sel: 'B3' }),
-          S('synth', 'syn-library', 'Ebenso vorbereiten: Synth-Sektion mit einer Fläche (SAMPLES → Pad), LEVEL ca. 4 – danach wieder AUS.'),
+          S('synth', 'syn-library', 'Ebenso vorbereiten: Synth-Sektion mit einer Fläche (SAMPLES → Kategorie „Synth Pad“ → „Sweet Saw Pad 2“), LEVEL ca. 4 – danach wieder AUS.'),
           ...store('Medley Johnny')],
         tips: 'Ein Programm für das ganze Medley: Das Klavier bleibt immer an, Orgel und Synth schaltest du per ON-Taste zu.' },
       { name: 'Rockin’ All Over the World', lex: 'b3',
@@ -301,7 +347,7 @@ export const SEED_SONGS = [
         tips: '' },
       { name: 'Synth-Riff', lex: 'brass',
         summary: 'Kurzer Synth-Akzent nach dem Refrain (D2–A2).',
-        steps: [S('synth', 'syn-libtype', 'Vorbereitung: Synth-Sektion mit ANALOG → Brass belegen, LEVEL ca. 5.', { sel: 'ANALOG' }),
+        steps: [S('synth', 'syn-libtype', 'Vorbereitung: Synth-Sektion mit ANALOG → „1984 Brass“ belegen, LEVEL ca. 5.', { sel: 'ANALOG' }),
           S('synth', 'syn-on', 'Für das Riff Synth einschalten (ON), danach wieder aus.')],
         tips: 'Wenn dir das Umschalten zu viel wird: Riff einfach mit Klavier + Orgel spielen.' },
     ],
@@ -376,7 +422,7 @@ export const SEED_SONGS = [
       { name: 'Fläche', lex: 'strings',
         summary: 'Breite Streicherfläche als Teppich (deine Notiz: OrchStrings).',
         steps: [...sectionsOnly(['synth', 'piano']), ...synthPad({ type: 'SAMPLES', cat: 'Strings', level: 6, attack: 3, release: 5 }),
-          ...piano({ cat: 'Electric', model: 'ein Rhodes', timbre: 'DYNO1', level: 6, extra: 'DYNO macht das Rhodes hell und glockig.' }),
+          ...piano({ cat: 'Electric', model: 'EP6 Sparkletop', timbre: 'DYNO1', level: 6, extra: 'DYNO macht das Rhodes hell und glockig.' }),
           off('piano', 'das Glocken-Rhodes kommt nur für die Melodie dazu.'),
           focus('SYN'), ...reverb('HALL', 4), ...store('Castle of Glass')],
         tips: 'Laut deiner Notiz erst ab der Mitte mitspielen und eine Oktave tiefer.' },
@@ -391,7 +437,7 @@ export const SEED_SONGS = [
     parts: [
       { name: 'Strophe', lex: 'rhodes',
         summary: 'Weiches Rhodes, ganz sparsam: einzelne Töne und liegende Akkorde.',
-        steps: [...sectionsOnly(['piano', 'synth']), ...piano({ cat: 'Electric', model: 'ein Rhodes', timbre: 'SOFT', level: 6 }),
+        steps: [...sectionsOnly(['piano', 'synth']), ...piano({ cat: 'Electric', timbre: 'SOFT', level: 6 }),
           ...synthPad({ type: 'SAMPLES', cat: 'Pad', level: 4 }),
           off('synth', 'die Fläche kommt erst im Refrain.'),
           focus('PNO'), ...pan(), ...reverb('HALL', 3), ...store('Californication')],
@@ -412,7 +458,7 @@ export const SEED_SONGS = [
     parts: [
       { name: 'Strophe', lex: 'rhodes',
         summary: 'Sehr leises, weiches Rhodes unter der Gitarre.',
-        steps: [...sectionsOnly(['piano', 'synth']), ...piano({ cat: 'Electric', model: 'ein Rhodes', timbre: 'SOFT', level: 5 }),
+        steps: [...sectionsOnly(['piano', 'synth']), ...piano({ cat: 'Electric', timbre: 'SOFT', level: 5 }),
           ...synthPad({ type: 'SAMPLES', cat: 'Pad', level: 5, attack: 4, release: 6 }),
           off('synth', 'die Fläche kommt erst im Schlussteil.'),
           focus('PNO'), ...reverb('HALL', 3), ...store('Under the Bridge')],
@@ -420,7 +466,7 @@ export const SEED_SONGS = [
       { name: 'Schlussteil', lex: 'pad',
         summary: 'Breite Fläche für den Chor-Teil am Ende.',
         steps: [on('synth')],
-        tips: 'Falls dein Nord einen Chor-Klang hat (SAMPLES → Choir), passt der hier noch besser.' },
+        tips: 'Alternative zum Ausprobieren: ein Chor (SAMPLES → Kategorie „Choir“ → „Men+Women Ah“).' },
     ],
   }),
   song({
@@ -429,7 +475,7 @@ export const SEED_SONGS = [
       { name: 'Strophe', lex: 'grand',
         summary: 'Dunkler Flügel für die Klavierfigur, ganz leise Streicher darunter.',
         steps: [...sectionsOnly(['piano', 'synth']), ...piano({ cat: 'Grand', timbre: 'SOFT', level: 7 }),
-          ...synthPad({ type: 'SAMPLES', cat: 'Strings', level: 3, attack: 4, release: 6 }),
+          ...synthPad({ type: 'SAMPLES', cat: 'Strings', name: 'Cinematic Strings Leg', level: 3, attack: 4, release: 6 }),
           S('synth', 'syn-oct', 'OCT ◀ einmal drücken: Streicher eine Oktave tiefer (deine Notiz „−1 Okt“).'),
           focus('PNO'), ...reverb('HALL', 4), ...store('Uninvited')],
         tips: 'Deine Notiz: Streicher in der linken Hand, leise.' },
@@ -445,7 +491,7 @@ export const SEED_SONGS = [
       { name: 'Strophe', lex: 'grand',
         summary: 'Weicher Flügel mit viel Hall – das Klavier trägt den ganzen Song.',
         steps: [...sectionsOnly(['piano', 'synth']), ...piano({ cat: 'Grand', timbre: 'SOFT', level: 7 }),
-          ...synthPad({ type: 'SAMPLES', cat: 'Strings', level: 4, attack: 4, release: 6 }),
+          ...synthPad({ type: 'SAMPLES', cat: 'Strings', name: 'Cinematic Strings Leg', level: 4, attack: 4, release: 6 }),
           off('synth', 'die Streicher kommen erst, wenn die Band einsetzt.'),
           focus('PNO'), ...reverb('HALL', 4), ...store('My Immortal')],
         tips: '' },
@@ -458,7 +504,7 @@ export const SEED_SONGS = [
   song({
     id: 'with-or-without-you', title: 'With or Without You', artist: 'U2', key: 'D', tags: ['Mitsingen', 'Langsam'],
     parts: whole('pad', 'Streicherfläche + weicher Flügel (deine Notiz: Grand Piano + Live Strings).',
-      [...sectionsOnly(['synth', 'piano']), ...synthPad({ type: 'SAMPLES', cat: 'Strings', level: 5, attack: 4, release: 6 }),
+      [...sectionsOnly(['synth', 'piano']), ...synthPad({ type: 'SAMPLES', cat: 'Strings', name: 'SymphStr XSoft Amb', level: 5, attack: 4, release: 6 }),
         ...piano({ cat: 'Grand', timbre: 'SOFT', level: 5 }),
         focus('SYN'), ...reverb('HALL', 4), ...store('With or Without You')],
       'Lange liegende Akkorde. Der Song steigert sich über vier Minuten: leise anfangen und das Synth-LEVEL nach und nach aufdrehen.'),
