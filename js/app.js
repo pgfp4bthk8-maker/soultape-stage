@@ -5,7 +5,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey } from './chordpro.js';
 
-export const APP_VERSION = '0.1.2';
+export const APP_VERSION = '0.1.3';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -484,7 +484,7 @@ function viewSettings() {
 
     <h2>Startdaten</h2>
     <div class="card stack">
-      <p class="small muted" style="margin:0">Fehlende Start-Songs wieder ergänzen. Optional die Soundvorschläge der Start-Songs auf den Auslieferungsstand zurücksetzen (Leadsheets bleiben erhalten).</p>
+      <p class="small muted" style="margin:0">Fehlende Start-Songs wieder ergänzen und Soundvorschläge für Songs nachtragen, die noch keinen haben. Optional die Soundvorschläge der Start-Songs auf den Auslieferungsstand zurücksetzen (Leadsheets bleiben erhalten).</p>
       <div class="row"><button class="btn" id="seedAdd">Fehlende Start-Songs ergänzen</button><button class="btn danger" id="seedReset">Soundvorschläge zurücksetzen</button></div>
     </div>
 
@@ -508,7 +508,7 @@ function viewSettings() {
     if (!parts.length) { toast('Noch keine Leadsheets vorhanden'); return; }
     download(`soultape-leadsheets-${new Date().toISOString().slice(0, 10)}.chopro`, parts.join('\n{new_song}\n'));
   };
-  $('#seedAdd').onclick = () => { const r = refreshSeeds(); toast(`${r.added} Song(s) ergänzt`); };
+  $('#seedAdd').onclick = () => { const r = refreshSeeds(); toast(`${r.added} Song(s) ergänzt, ${r.filled} Soundvorschlag/-vorschläge nachgetragen`); };
   $('#seedReset').onclick = () => { if (confirm('Soundvorschläge der Start-Songs zurücksetzen? Eigene Änderungen an diesen Sounds gehen verloren.')) { const r = refreshSeeds({ overwriteSounds: true }); toast(`${r.updated} Song(s) zurückgesetzt`); } };
 }
 

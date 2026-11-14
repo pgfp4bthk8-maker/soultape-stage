@@ -92,7 +92,7 @@ Chris' Datei „01 Stücke Proben.chopro“ (liegt im claude.ai-Projekt „PIANO
 8. Später: Bluetooth-Fußschalter (sendet meist Pfeil-/Bild-Tasten → Tastatur-Events), MIDI-Programmwechsel (Web MIDI am PC; Safari/iPad hat kein Web MIDI → Brücken-App oder native App), Band-Synchronisation, Referenzaufnahmen, Hörbeispiele.
 
 **Bekannte Kleinigkeiten:**
-- Song „Zombie“ fehlt noch; Chris liefert weitere Songs/Setlist nach.
+- Seit 0.1.3 haben alle 37 Songs der Krimikeller-Setliste Soundvorschläge in `SEED_SONGS` (47 Einträge). `refreshSeeds()` in `js/store.js` ordnet sie importierten Songs über den Titel zu und füllt nur Songs ohne Sound; bei höherer `SEED_VERSION` passiert das still beim Start. **NDW-Medley ist nur ein Platzhalter** – Chris fragen, welche Songs darin stecken. Die Kawai-Codes (`11A`, `33C` …) sind nicht entschlüsselt.
 - Daten liegen pro Gerät im Browser; PC → iPad nur über Backup-Datei. Chris regelmäßig an Backups erinnern.
 - **iOS-Dateiauswahl:** Kein `accept=".chopro,…"` an `<input type="file">` setzen – iOS kennt die Endung nicht und graut die Dateien aus (in 0.1.2 behoben). `.json` für Backups funktioniert.
 - Die Landkarten sind vereinfacht; einzelne Beschriftungen (z. B. EQ „MID“) sind angenähert. Fotos des echten Panels liegen im claude.ai-Projekt (IMG_0469/0470).
