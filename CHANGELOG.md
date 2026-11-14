@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.1.7 – 14.11.2026
+- **Soundwechsel im Leadsheet:** Ein breiter, magentafarbener Balken „⇄ WECHSEL“ zeigt auf der Bühne genau an der Stelle, was am Nord zu tun ist – entweder ein Programmwechsel („M 24 Orgel“, der Speicherplatz steht groß in einem weißen Feld) oder ein Handgriff im selben Programm („Synth AN“, „Piano AUS“).
+- Setzen im Vorbereitungsmodus: in der Song-Ansicht „⇄ Soundwechsel setzen“ antippen, dann auf die Zeile tippen, vor der gewechselt wird. Ein Tipp auf einen vorhandenen Balken ändert oder entfernt ihn. Das Original bleibt erhalten; die Wechsel stehen in einer eigenen Version „Mit Soundwechseln“.
+- Im Text ist ein Wechsel die Zeile `{wechsel: M 24 Orgel}` – sie bleibt bei Backup und ChordPro-Export erhalten und kann auch von Hand geschrieben werden.
+- **Ruhigeres Blättern:** Tippen rechts/links lässt das Leadsheet jetzt langsam und gleichmäßig weiterlaufen (weich anfahren, weich abbremsen), damit das Auge der Zeile folgen kann. Tempo in den Einstellungen wählbar: Zügig, Ruhig (Standard) oder Langsam. Zweimal tippen blättert zwei Schritte; selbst wischen stoppt die Bewegung.
+- Lautstärke: Der MASTER LEVEL-Regler des Nord wird nicht pro Programm gespeichert. In den Einstellungen gibt es deshalb den Abschnitt „Mein Nord – Lautstärke“ mit der festen Master-Stellung und dem Referenz-Sound, auf den der Mischer einpegelt.
+- Pro Song ein neuer Haken „Lautstärke mit dem Referenz-Sound abgeglichen“ (unter „Bearbeiten“). In der Song-Ansicht steht im Vorbereitungsmodus ein Hinweis, solange der Haken fehlt; die Einstellungen zeigen, wie viele Songs schon abgeglichen sind.
+- Die Anleitung erinnert daran: Master nicht anfassen, die dB-Werte bei LEVEL sind Startwerte und werden gegen den Referenz-Sound nachgeregelt.
+
 ## 0.1.6 – 14.11.2026
 - Anleitungen nennen jetzt den **Wert im Display** des Nord statt einer Reglerstellung: Der Nord speichert den Display-Wert, die Stellung des Knopfs stimmt nach einem Programmwechsel nicht mehr. Unter jedem Schritt steht gelb „Im Display: 300 ms“, „Im Display: −12 dB“ oder „Im Display: 3 (Skala 0–10)“.
 - Attack und Release stehen als Zeit (ms/s), Lautstärken (LEVEL) in dB, der Filter in Hz/kHz. Grundlage sind die am Gerät abgelesenen Werte (siehe docs/NORD-ELECTRO-7.md). Rotary-Drive und alle Effekt-Regler zeigen 0–10 und bleiben unverändert.

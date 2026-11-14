@@ -12,6 +12,8 @@
   --trigger-bg: #ff8a00;   /* Trigger-Hinweise */
   --trigger-fg: #1a0e00;
   --review: #7cc4ff;
+  --switch-bg: #c2188f;    /* Soundwechsel am Nord */
+  --switch-fg: #ffffff;
   --ok: #57c785;
   --font: 22px;
   --radius: 12px;
@@ -193,6 +195,20 @@ svg.panel { width: 100%; height: auto; display: block; border-radius: 10px; }
   padding: .05em .5em; border-radius: 6px; font-weight: 700; margin: .15em 0;
 }
 .sheet .trig-in { background: var(--trigger-bg); color: var(--trigger-fg); border-radius: 4px; padding: 0 .25em; font-weight: 700; }
+/* Soundwechsel am Nord: breiter Balken über die ganze Zeile, eigene Farbe (nicht Akkord-Gelb, nicht Trigger-Orange) */
+.sheet .switch {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .1em .5em;
+  margin: .5em 0 .35em; padding: .25em .6em; border-radius: 10px;
+  background: var(--switch-bg); color: var(--switch-fg); font-weight: 800;
+  border: 3px solid #fff;
+}
+.sheet .switch .sw-ico { font-size: 1.3em; line-height: 1; }
+.sheet .switch .sw-lbl { text-transform: uppercase; letter-spacing: .06em; font-size: .7em; opacity: .9; }
+.sheet .switch .sw-slot { background: #fff; color: #000; border-radius: 6px; padding: 0 .4em; font-size: 1.15em; }
+.sheet .switch .sw-txt { font-size: 1.05em; }
+.sheet.marking .ln[data-src] { cursor: pointer; border-top: 2px dashed transparent; }
+.sheet.marking .ln[data-src]:not(.empty):hover { border-top-color: var(--switch-bg); }
+.sheet .markbox { font-size: 16px; margin: 10px 0; border: 2px solid var(--switch-bg); user-select: auto; -webkit-user-select: auto; }
 .sheet .kawai { font-size: .65em; color: var(--muted); }
 .sheet .vocal { color: var(--muted); font-style: italic; }   /* Backing-Vocals, gesprochene Einwürfe */
 .sheet .tab {                                                   /* Gitarren-Tabulatur {sot} … {eot} */

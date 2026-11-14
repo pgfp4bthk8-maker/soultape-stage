@@ -3,9 +3,9 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
-import { splitSongs, renderSheet, analyze, guessKey, transposeKey } from './chordpro.js';
+import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.6';
+export const APP_VERSION = '0.1.7';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -105,7 +105,8 @@ function viewSong(id) {
   const order = sortedSongs();
   const idx = order.findIndex((x) => x.id === id);
   const prev = order[idx - 1], next = order[idx + 1];
-  if (ui.songId !== id) { ui = { ...ui, songId: id, part: 0, step: 0, guide: false }; }
+  if (ui.songId !== id) { ui = { ...ui, songId: id, part: 0, step: 0, guide: false, mark: false }; }
+  if (isStage()) ui.mark = false;
   const part = s.parts?.[ui.part];
   const sheet = activeSheet(s);
   const tr = s.transpose || 0;
@@ -120,7 +121,8 @@ function viewSong(id) {
     </div>
     <div class="nordbox">
       <div><div class="lbl">Nord-Programm</div><div class="prog">${s.nordSlot ? `<span class="slot">${esc(s.nordSlot)}</span>` : ''}${esc(s.nordProgram || s.title)}</div>
-        ${s.nordStored ? '' : '<div class="small" style="color:#ffb3b3">Noch nicht auf dem Nord gespeichert</div>'}</div>
+        ${s.nordStored ? '' : '<div class="small" style="color:#ffb3b3">Noch nicht auf dem Nord gespeichert</div>'}
+        ${s.levelOk ? '' : '<div class="small muted prep-only">Lautstärke noch nicht abgeglichen</div>'}</div>
       ${s.kawai ? `<div class="kawai">Alter Kawai-Sound<br><b>${esc(s.kawai)}</b></div>` : ''}
     </div>
     ${s.parts?.length ? `
@@ -135,10 +137,12 @@ function viewSong(id) {
     <div class="sheetbar">
       <div class="grp" title="Transponieren"><button id="trDown">−</button><span>${tr === 0 ? 'Original' : (tr > 0 ? '+' : '') + tr}<br><b style="color:var(--chord)">${esc(transposeKey(s.key, tr, notation()) || '–')}</b></span><button id="trUp">+</button></div>
       <div class="grp" title="Schriftgröße"><button id="fsDown">A−</button><button id="fsUp">A+</button></div>
+      ${sheet ? `<button class="btn prep-only ${ui.mark ? 'primary' : ''}" id="markBtn">${ui.mark ? 'Fertig' : '⇄ Soundwechsel setzen'}</button>` : ''}
       <span class="spacer" style="flex:1"></span>
       ${sheet ? `<span class="badge prep-only">${esc(sheet.name)}</span>` : ''}
     </div>
-    <div class="sheet" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
+    ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf die Zeile, <b>vor</b> der du den Sound wechseln musst. Tippe auf einen vorhandenen Wechsel-Balken, um ihn zu ändern oder zu entfernen. Dein Original bleibt erhalten – die Wechsel landen in einer eigenen Version „Mit Soundwechseln“.</div>' : ''}
+    <div class="sheet${ui.mark ? ' marking' : ''}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
       `<p class="muted" style="font-size:17px">Noch kein Leadsheet. <span class="prep-only">Unter <a href="#/import">Leadsheets importieren</a> kannst du deine ChordPro-Datei einlesen.</span></p>`}</div>
     <div class="songnav">
       ${prev ? `<a class="btn" href="#/song/${prev.id}">◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
@@ -162,16 +166,102 @@ function viewSong(id) {
 
   // Tippen rechts = weiter, links = zurück (sanft, um ca. zwei Drittel des Bildschirms)
   const sh = $('#sheet');
+  const mb = $('#markBtn'); if (mb) mb.onclick = () => { ui.mark = !ui.mark; viewSongKeepScroll(id); };
   let downX = 0, downY = 0, downT = 0;
   sh.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY; downT = Date.now(); });
   sh.addEventListener('pointerup', (e) => {
     if (Math.abs(e.clientX - downX) > 10 || Math.abs(e.clientY - downY) > 10 || Date.now() - downT > 500) return;
-    if (e.target.closest('a,button')) return;
+    if (e.target.closest('a,button,input,.markbox')) return;
+    if (ui.mark) { const ln = e.target.closest('.ln[data-src]'); if (ln) openMarkBox(s, ln); return; }
     const w = window.innerWidth;
     const dy = Math.round(window.innerHeight * 0.66);
-    if (e.clientX > w * 0.6) window.scrollBy({ top: dy, behavior: 'smooth' });
-    else if (e.clientX < w * 0.4) window.scrollBy({ top: -dy, behavior: 'smooth' });
+    if (e.clientX > w * 0.6) glide(dy);
+    else if (e.clientX < w * 0.4) glide(-dy);
   });
+}
+
+// ---------- Sanftes Blättern ----------
+// Eigene Bewegung statt der des Browsers: gleichmäßig langsam, damit das Auge der Zeile folgen kann.
+// Tempo in den Einstellungen (pageMs = Dauer einer Blätter-Bewegung in Millisekunden).
+const PAGE_SPEEDS = { 700: 'Zügig', 1400: 'Ruhig', 2200: 'Langsam' };
+let glideRaf = 0, glideTarget = null, glideGuard = 0;
+function stopGlide() { if (glideRaf) cancelAnimationFrame(glideRaf); clearTimeout(glideGuard); glideRaf = 0; glideTarget = null; }
+// Wischt man selbst (Finger oder Mausrad), stoppt die Bewegung sofort
+window.addEventListener('touchmove', stopGlide, { passive: true });
+window.addEventListener('wheel', stopGlide, { passive: true });
+window.addEventListener('hashchange', stopGlide);
+function glide(dy) {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  // Zweites Tippen während der Bewegung: vom bisherigen Ziel aus weiterrechnen
+  const from = window.scrollY;
+  const to = Math.max(0, Math.min(max, (glideTarget ?? from) + dy));
+  stopGlide();
+  if (Math.abs(to - from) < 2) return;
+  glideTarget = to;
+  const ms = state.settings.pageMs || 1400;
+  const t0 = performance.now();
+  const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);   // weich anfahren und abbremsen
+  const tick = (now) => {
+    const p = Math.min(1, (now - t0) / ms);
+    window.scrollTo(0, from + (to - from) * ease(p));
+    if (p < 1) glideRaf = requestAnimationFrame(tick); else stopGlide();
+  };
+  glideRaf = requestAnimationFrame(tick);
+  // Sicherheitsnetz: Liefert der Browser keine Bild-Takte, landet die Seite trotzdem am Ziel
+  glideGuard = setTimeout(() => { if (glideTarget === to) { window.scrollTo(0, to); stopGlide(); } }, ms + 300);
+}
+
+// ---------- Soundwechsel im Leadsheet setzen (nur Vorbereitung) ----------
+/**
+ * Ändert den Rohtext der aktiven Version. Das Original wird nie überschrieben:
+ * Beim ersten Wechsel entsteht eine Kopie „Mit Soundwechseln“, weitere Wechsel landen in dieser Kopie.
+ */
+function editMarks(s, change) {
+  let v = activeSheet(s);
+  if (!v) return;
+  if (!v.marks) {
+    v = addSheet(s, `Mit Soundwechseln ${fmtDate(new Date().toISOString())}`, v.text, true);
+    v.marks = true;
+  }
+  const lines = v.text.replace(/\r\n?/g, '\n').split('\n');
+  change(lines);
+  v.text = lines.join('\n');
+  persist();
+}
+
+/** Blendet über der angetippten Zeile ein Feld ein, um einen Wechsel zu setzen, zu ändern oder zu entfernen. */
+function openMarkBox(s, ln) {
+  const old = $('#sheet .markbox'); if (old) old.remove();
+  const src = +ln.dataset.src;
+  const isSwitch = ln.classList.contains('switch');
+  const lines = activeSheet(s).text.replace(/\r\n?/g, '\n').split('\n');
+  const cur = isSwitch ? (switchText(lines[src]) || '') : '';
+  const partChips = (s.parts || []).length > 1 ? s.parts.map((p) => p.name).filter(Boolean) : [];
+  const chips = [...partChips, 'Piano AN', 'Piano AUS', 'Orgel AN', 'Orgel AUS', 'Synth AN', 'Synth AUS', 'Rotary schnell', 'Rotary langsam'];
+  const box = document.createElement('div');
+  box.className = 'markbox card stack';
+  box.innerHTML = `
+    <b>${isSwitch ? 'Soundwechsel ändern' : 'Soundwechsel vor dieser Zeile'}</b>
+    <div class="small muted">Was musst du tun? Für einen Programmwechsel den Speicherplatz zuerst schreiben, z. B. „M 24 Orgel“. Sonst antippen oder frei eintragen, z. B. „Synth AN“.</div>
+    <div class="row">${chips.map((c) => `<span class="chip" data-chip="${esc(c)}">${esc(c)}</span>`).join('')}</div>
+    <input type="text" id="markText" value="${esc(cur)}" placeholder="z. B. M 24 Orgel  oder  Synth AN">
+    <div class="row"><button class="btn primary" id="markSet">${isSwitch ? 'Ändern' : 'Setzen'}</button>
+      ${isSwitch ? '<button class="btn danger" id="markDel">Entfernen</button>' : ''}
+      <button class="btn ghost" id="markCancel">Abbrechen</button></div>`;
+  ln.before(box);
+  const inp = $('#markText', box);
+  box.querySelectorAll('[data-chip]').forEach((c) => c.onclick = () => {
+    inp.value = inp.value.trim() ? `${inp.value.trim()}, ${c.dataset.chip}` : c.dataset.chip;
+  });
+  $('#markCancel', box).onclick = () => box.remove();
+  $('#markSet', box).onclick = () => {
+    const t = inp.value.trim();
+    if (!t) { inp.focus(); return; }
+    editMarks(s, (l) => { if (isSwitch) l[src] = switchLine(t); else l.splice(src, 0, switchLine(t)); });
+    viewSongKeepScroll(s.id);
+  };
+  const del = $('#markDel', box);
+  if (del) del.onclick = () => { editMarks(s, (l) => l.splice(src, 1)); viewSongKeepScroll(s.id); };
 }
 
 function viewSongKeepScroll(id) {
@@ -200,6 +290,7 @@ function guideHtml(part) {
   const hint = (x) => { const h = stepHint(x); return h ? `<div class="hint">${esc(h)}</div>` : ''; };
   return `<div class="guide card">
     <div class="small muted" style="margin-bottom:8px">Bei Drehreglern zählt immer der <b>Wert im Display</b> des Nord – er wird gespeichert, nicht die Stellung des Knopfs. Dreh den Regler, bis der gelb angegebene Wert im Display steht. Der Zeiger in der Skizze zeigt nur die ungefähre Richtung.</div>
+    <div class="small muted" style="margin-bottom:8px"><b>Lautstärke:</b> MASTER LEVEL bleibt immer auf der festen Stellung${state.settings.nordMaster ? ` (${esc(state.settings.nordMaster)})` : ''}. Die dB-Werte bei LEVEL sind Startwerte – vor dem Speichern mit dem Referenz-Sound${state.settings.nordRef ? ` (${esc(state.settings.nordRef)})` : ''} vergleichen und am LEVEL der Sektion nachregeln, bis es gleich laut wirkt.</div>
     <div class="mapwrap">
       <div id="map">${renderPanel(st.s, st)}</div>
       <div class="mapnav"><button class="btn" id="stPrev">◀</button><span class="pos" id="stPos">Schritt ${ui.step + 1} von ${part.steps.length} · ${esc(SECTIONS[st.s]?.name || '')}</span><button class="btn" id="stNext">▶</button></div>
@@ -241,6 +332,7 @@ function viewEdit(id) {
         <label class="f"><span>Alter Kawai-Sound</span><input type="text" id="f-kawai" value="${esc(s.kawai)}"></label>
       </div>
       <label class="row"><input type="checkbox" id="f-stored" ${s.nordStored ? 'checked' : ''} style="width:22px;height:22px"> Programm ist auf dem Nord gespeichert</label>
+      <label class="row"><input type="checkbox" id="f-level" ${s.levelOk ? 'checked' : ''} style="width:22px;height:22px"> Lautstärke mit dem Referenz-Sound abgeglichen</label>
       <div><div class="small muted" style="margin-bottom:6px">Schlagworte</div>
         <div class="row">${[...TAGS, ...custom].map((t) => `<span class="chip ${s.tags?.includes(t) ? 'on' : ''}" data-tag="${esc(t)}">${esc(t)}</span>`).join('')}
         <input type="text" id="f-newtag" placeholder="+ eigenes Schlagwort" style="width:200px"></div></div>
@@ -296,6 +388,7 @@ function viewEdit(id) {
   bind('#f-kawai', (e) => { s.kawai = e.target.value.trim(); persist(); });
   bind('#f-notes', (e) => { s.notes = e.target.value; persist(); });
   bind('#f-stored', (e) => { s.nordStored = e.target.checked; persist(); });
+  bind('#f-level', (e) => { s.levelOk = e.target.checked; persist(); });
   bind('#f-newtag', (e) => { const t = e.target.value.trim(); if (t) { s.tags = [...new Set([...(s.tags || []), t])]; persist(); viewEdit(id); } });
   app.querySelectorAll('[data-tag]').forEach((c) => c.onclick = () => {
     const t = c.dataset.tag; s.tags = s.tags || [];
@@ -490,7 +583,19 @@ function viewSettings() {
       <div><b>Akkord-Schreibweise</b><div class="row" style="margin-top:6px">
         <span class="chip ${st.notation === 'de' ? 'on' : ''}" data-not="de">Deutsch (H, B = Bb)</span>
         <span class="chip ${st.notation === 'en' ? 'on' : ''}" data-not="en">Englisch (B, Bb)</span></div></div>
+      <div><b>Blättern beim Tippen</b> <span class="muted small">(wie schnell das Leadsheet weiterläuft)</span><div class="row" style="margin-top:6px">
+        ${Object.entries(PAGE_SPEEDS).map(([ms, name]) => `<span class="chip ${(st.pageMs || 1400) === +ms ? 'on' : ''}" data-page="${ms}">${name}</span>`).join('')}</div></div>
       <div><b>Schriftgröße Leadsheet:</b> ${st.fontSize}px <span class="muted small">(in der Song-Ansicht mit A−/A+ änderbar)</span></div>
+    </div>
+
+    <h2>Mein Nord – Lautstärke</h2>
+    <div class="card stack">
+      <p class="small muted" style="margin:0">Der MASTER LEVEL-Regler wird nicht im Programm gespeichert – es gilt immer die Stellung des Knopfs. Deshalb: einmal festlegen, markieren und nicht mehr anfassen. Der Mischer stellt seinen Eingang einmal auf den Referenz-Sound ein. Die Lautstärke pro Song regelst du über die LEVEL-Regler von Piano, Orgel und Synth (die werden gespeichert) und vergleichst jedes Programm vor dem Speichern mit dem Referenz-Sound.</p>
+      <div class="grid2">
+        <label class="f"><span>Feste Master-Stellung (z. B. 3 Uhr)</span><input type="text" id="set-master" value="${esc(st.nordMaster || '')}" placeholder="3 Uhr"></label>
+        <label class="f"><span>Referenz-Sound (Programm zum Vergleichen)</span><input type="text" id="set-ref" value="${esc(st.nordRef || '')}" placeholder="z. B. White Grand, kräftig gespielt"></label>
+      </div>
+      <div class="small muted">Abgeglichen: ${state.songs.filter((x) => x.levelOk).length} von ${state.songs.length} Songs</div>
     </div>
 
     <h2>Sicherung & Übertragung</h2>
@@ -517,6 +622,9 @@ function viewSettings() {
 
     <p class="small muted" style="margin-top:24px">SoulTape Stage · Version ${APP_VERSION}</p>`);
   app.querySelectorAll('[data-not]').forEach((c) => c.onclick = () => { st.notation = c.dataset.not; persist(); viewSettings(); });
+  app.querySelectorAll('[data-page]').forEach((c) => c.onclick = () => { st.pageMs = +c.dataset.page; persist(); viewSettings(); });
+  $('#set-master').onchange = (e) => { st.nordMaster = e.target.value.trim(); persist(); };
+  $('#set-ref').onchange = (e) => { st.nordRef = e.target.value.trim(); persist(); };
   $('#exp').onclick = () => download(`soultape-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), 'application/json');
   $('#imp').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;

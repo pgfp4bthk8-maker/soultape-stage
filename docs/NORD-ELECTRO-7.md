@@ -45,6 +45,12 @@ Quelle: Nord Electro 7 73/HP User Manual (OS v1.2x, Edition C) und Fotos von Chr
 
 In der App: Schritte mit Zeit-, Frequenz- oder dB-Wert tragen das Feld `disp` (Display-Text, z. B. `'300 ms'`, `'−12 dB'`); `val` ist dort nur noch die ungefähre Knopfstellung für die Landkarte. Bei den 0–10-Reglern ist `val` selbst der Display-Wert.
 
+## Lautstärke (mit Chris am 14.11.2026 besprochen)
+
+- **MASTER LEVEL** wird nicht im Programm gespeichert; es gilt immer die Knopfstellung (global für alle Sounds). Chris lässt ihn auf einer festen, markierten Stellung; der Mischer am Wing pegelt einmal auf einen Referenz-Sound ein.
+- Die Lautstärke pro Song wird über die **LEVEL-Regler der Sektionen** (Piano, Orgel, Synth) eingestellt – die werden gespeichert. Gleiche dB-Werte klingen je nach Klang unterschiedlich laut, deshalb jedes Programm vor dem Speichern mit dem Referenz-Sound vergleichen.
+- In der App: `settings.nordMaster`, `settings.nordRef` (Freitext) und pro Song `levelOk` (Haken „abgeglichen“).
+
 ## Programme
 
 - 500 Programmplätze in **20 Bänken A–T**, Auswahl mit PROGRAM-Rad oder PROGRAM-Tasten 1–5, PAGE blättert.
