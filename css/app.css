@@ -131,6 +131,7 @@ body.stage .songs .t { font-size: 24px; }
   display: grid; place-items: center; background: var(--bg3); font-size: 14px; font-weight: 700;
 }
 .guide .steps li .sec { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.guide .steps li .hint { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--chord); }
 .guide .steps li.on { background: var(--bg3); border-color: var(--trigger-bg); }
 .guide .steps li.on::before { background: var(--trigger-bg); color: var(--trigger-fg); }
 .mapwrap { position: sticky; top: 60px; z-index: 5; background: var(--bg); padding: 8px 0; }

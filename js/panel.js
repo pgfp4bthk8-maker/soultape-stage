@@ -188,7 +188,7 @@ export function renderPanel(section, step = {}) {
         out.push(`<g class="p-ctl${cls}"><circle cx="${c.x}" cy="${c.y}" r="${r}" class="p-knob"/>` +
           `<line x1="${c.x}" y1="${c.y}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" class="p-ptr"/>` +
           `<text x="${c.x}" y="${c.y + r + 12}" class="p-label">${esc(c.label)}</text>` +
-          (v !== null ? `<text x="${c.x + r + 4}" y="${c.y - r + 4}" class="p-val">${v}</text>` : '') + `</g>`);
+          (v !== null ? `<text x="${c.x + r + 4}" y="${c.y - r + 4}" class="p-val">${esc(step.disp || String(v).replace(".", ","))}</text>` : '') + `</g>`);
         break;
       }
       case 'leds': {
