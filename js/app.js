@@ -5,7 +5,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey } from './chordpro.js';
 
-export const APP_VERSION = '0.1.5';
+export const APP_VERSION = '0.1.6';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -180,14 +180,31 @@ function viewSongKeepScroll(id) {
   window.scrollTo(0, y);
 }
 
+/** Eindeutige Angabe zu einem Schritt: Reglerstellung mit Skala, LED-Auswahl oder Zugriegel. */
+function stepHint(x) {
+  if (x.drawbars) {
+    return `Zugriegel von links nach rechts: ${String(x.drawbars).split('').join(' ')} · Skala 0–8 (0 = ganz hineingeschoben, 8 = ganz herausgezogen)`;
+  }
+  // Maßgeblich ist der Wert im Display des Nord – der wird gespeichert, nicht die Knopfstellung.
+  if (x.disp) return `Im Display: ${x.disp}`;
+  // Zeit, Frequenz und Lautstärke zeigt das Display in ms/s, Hz und dB – ohne gemessenen Wert lieber nichts behaupten.
+  if (typeof x.val === 'number' && !/^(syn-attack|syn-decay|syn-release|syn-freq)$|-level$/.test(x.c)) {
+    return `Im Display: ${String(x.val).replace('.', ',')} (Skala 0–10)`;
+  }
+  if (x.sel) return `Auswahl: Die LED bei „${x.sel}“ muss leuchten`;
+  return '';
+}
+
 function guideHtml(part) {
   const st = part.steps[ui.step] || part.steps[0];
+  const hint = (x) => { const h = stepHint(x); return h ? `<div class="hint">${esc(h)}</div>` : ''; };
   return `<div class="guide card">
+    <div class="small muted" style="margin-bottom:8px">Bei Drehreglern zählt immer der <b>Wert im Display</b> des Nord – er wird gespeichert, nicht die Stellung des Knopfs. Dreh den Regler, bis der gelb angegebene Wert im Display steht. Der Zeiger in der Skizze zeigt nur die ungefähre Richtung.</div>
     <div class="mapwrap">
       <div id="map">${renderPanel(st.s, st)}</div>
       <div class="mapnav"><button class="btn" id="stPrev">◀</button><span class="pos" id="stPos">Schritt ${ui.step + 1} von ${part.steps.length} · ${esc(SECTIONS[st.s]?.name || '')}</span><button class="btn" id="stNext">▶</button></div>
     </div>
-    <ol class="steps">${part.steps.map((x, i) => `<li data-step="${i}" class="${i === ui.step ? 'on' : ''}"><div><div class="sec">${esc(SECTIONS[x.s]?.name || '')}</div>${esc(x.t)}</div></li>`).join('')}</ol>
+    <ol class="steps">${part.steps.map((x, i) => `<li data-step="${i}" class="${i === ui.step ? 'on' : ''}"><div><div class="sec">${esc(SECTIONS[x.s]?.name || '')}</div>${esc(x.t)}${hint(x)}</div></li>`).join('')}</ol>
   </div>`;
 }
 
@@ -293,7 +310,7 @@ function viewEdit(id) {
     if (f === 'c') x.c = el.value;
     if (f === 't') x.t = el.value;
     if (f === 'v') {
-      delete x.val; delete x.sel; delete x.drawbars;
+      delete x.val; delete x.sel; delete x.drawbars; delete x.disp;
       const v = el.value.trim();
       if (/^\d{9}$/.test(v)) x.drawbars = v;
       else if (/^\d+(\.\d+)?$/.test(v)) x.val = +v;

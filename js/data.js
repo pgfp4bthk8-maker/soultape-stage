@@ -5,7 +5,7 @@
 // Alle Einstellwerte sind Startpunkte (Skala 0–10 wie auf den Reglern).
 // Im Proberaum mit der Band prüfen und nach Gehör anpassen.
 
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 
 // ---------- Sound-Lexikon ----------
 export const LEXICON = [
@@ -150,11 +150,29 @@ const piano = ({ cat, model, timbre = 'MID', level = 7, extra = '' }) => [
   S('piano', 'pno-level', `LEVEL auf ca. ${level}.`, { val: level }),
 ];
 
+// ---------- Display-Werte ----------
+// Der Nord speichert den Wert, der im Display steht – nicht die Stellung des Knopfs.
+// Messwerte von Chris' Gerät (links / Mitte / rechts) stehen in docs/NORD-ELECTRO-7.md.
+// disp = Zielwert im Display; val = ungefähre Knopfstellung 0–10, nur für den Zeiger in der Landkarte.
+const round1 = (x) => Math.round(Math.max(0, Math.min(10, x)) * 10) / 10;
+// Zeit-Regler: links min, Mitte 1,2 s, rechts 45 s (ungleichmäßige Skala)
+const knobTime = (t, min) => round1(t <= 1.2 ? 5 * Math.log(t / min) / Math.log(1.2 / min) : 5 + 5 * Math.log(t / 1.2) / Math.log(45 / 1.2));
+const fmtTime = (t) => (t < 1 ? `${Math.round(t * 1000)} ms` : `${String(t).replace('.', ',')} s`);
+const timeStep = (c, label, t, min, why) =>
+  S('synth', c, `${label} drehen, bis im Display ca. ${fmtTime(t)} steht – ${why}`, { val: knobTime(t, min), disp: fmtTime(t) });
+// Die Bausteine nehmen weiter Stufen entgegen; hier steht, welche Zeit jede Stufe bedeutet.
+const ATTACK_S = { 2: 0.2, 3: 0.3, 4: 0.5 };
+const RELEASE_S = { 2: 0.2, 3: 0.4, 4: 0.8, 5: 1.2, 6: 1.8 };
+// LEVEL-Regler: links Off, Mitte −12 dB, rechts 0 dB
+const LEVEL_DB = { 3: -15, 4: -12, 5: -9, 6: -6, 7: -4 };
+const fmtDb = (n) => `${LEVEL_DB[n]} dB`.replace('-', '−');
+const knobDb = (db) => round1(db >= -12 ? 10 + db * 5 / 12 : 5 + (db + 12) * 5 / 30);
+
 const synthPad = ({ type = 'SAMPLES', cat = 'Pad', name, level = 4, attack = 3, release = 5 }) => [
   S('synth', 'syn-libtype', `SOUND LIBRARY-Rad drücken und ${type} wählen (Soft-Taste unter dem Display).`, { sel: type }),
   S('synth', 'syn-library', synthPick(type, cat, name)),
-  S('synth', 'syn-attack', `ATTACK auf ca. ${attack}, damit der Klang weich einschwebt.`, { val: attack }),
-  S('synth', 'syn-release', `RELEASE auf ca. ${release}, damit er sanft ausklingt.`, { val: release }),
+  timeStep('syn-attack', 'ATTACK', ATTACK_S[attack], 0.0005, 'damit der Klang weich einschwebt.'),
+  timeStep('syn-release', 'RELEASE', RELEASE_S[release], 0.003, 'damit er sanft ausklingt.'),
   S('synth', 'syn-level', `LEVEL auf ca. ${level} – die Fläche bleibt im Hintergrund.`, { val: level }),
 ];
 
@@ -163,8 +181,8 @@ const synthHit = ({ type = 'ANALOG', cat = 'Brass', name, level = 6, release = 2
   S('synth', 'syn-libtype', `SOUND LIBRARY-Rad drücken und ${type} wählen (Soft-Taste unter dem Display).`, { sel: type }),
   S('synth', 'syn-library', synthPick(type, cat, name)),
   ...(mono ? [S('synth', 'syn-voice', 'VOICE MODE auf MONO – einstimmig, so klingen Melodien sauber.', { sel: 'MONO' })] : []),
-  S('synth', 'syn-attack', 'ATTACK auf 0 – der Klang ist sofort da.', { val: 0 }),
-  S('synth', 'syn-release', `RELEASE auf ca. ${release} – kurz, damit Akzente knackig bleiben.`, { val: release }),
+  S('synth', 'syn-attack', 'ATTACK ganz nach links drehen, bis im Display 0,5 ms steht – der Klang ist sofort da.', { val: 0, disp: '0,5 ms' }),
+  timeStep('syn-release', 'RELEASE', RELEASE_S[release], 0.003, 'kurz, damit Akzente knackig bleiben.'),
   S('synth', 'syn-level', `LEVEL auf ca. ${level}.`, { val: level }),
 ];
 
@@ -501,7 +519,7 @@ export const SEED_SONGS = [
       { name: 'Steigerung', lex: 'strings',
         summary: 'Streicher werden groß und tragen den Schluss.',
         steps: [S('synth', 'syn-level', 'Streicher-LEVEL langsam aufdrehen, bis ca. 6.', { val: 6 })],
-        tips: 'Danach wieder auf ca. 3 zurück.' },
+        tips: 'Danach wieder auf ca. −15 dB zurück.' },
     ],
   }),
   song({
@@ -598,7 +616,7 @@ export const SEED_SONGS = [
     id: 'enter-sandman', title: 'Enter Sandman', artist: 'Metallica', key: 'E', tags: ['Party'],
     parts: whole('pad', 'Im Original keine Tasten. Dunkle Fläche für Intro und Mittelteil.',
       [...sectionsOnly(['synth']), ...synthPad({ type: 'ANALOG', cat: 'Pad', level: 5, attack: 4, release: 6 }),
-        S('synth', 'syn-freq', 'FREQ auf ca. 4 zudrehen – der Klang wird dunkler und bedrohlicher.', { val: 4 }),
+        S('synth', 'syn-freq', 'FREQ drehen, bis im Display ca. 1,5 kHz steht – der Klang wird dunkler und bedrohlicher.', { val: 6.3, disp: '1,5 kHz' }),
         focus('SYN'), ...reverb('HALL', 4), ...store('Enter Sandman')],
       'Tiefe, liegende Töne im Intro und im gesprochenen Mittelteil. Im Rest des Songs pausieren oder nur den Grundton halten.'),
   }),
@@ -753,7 +771,7 @@ export const SEED_SONGS = [
       { name: 'Strophe / Refrain', lex: 'grand',
         summary: 'Heller Flügel, Synth leiser dazu.',
         steps: [on('piano'), S('synth', 'syn-level', 'Synth-LEVEL auf ca. 4 zurücknehmen.', { val: 4 })],
-        tips: 'Für das Riff nach dem Refrain Synth wieder auf ca. 7.' },
+        tips: 'Für das Riff nach dem Refrain Synth-LEVEL wieder auf ca. −4 dB.' },
     ],
   }),
   song({
@@ -839,3 +857,17 @@ export const SEED_SONGS = [
       'Laut deiner Notiz: Das lange Intro ist nur Gitarre, die Streicher kommen nach etwa 15 Takten und bleiben leicht.'),
   }),
 ];
+
+// LEVEL-Angaben in Display-Werte (dB) umschreiben – in den LEVEL-Schritten und in Vorbereitungs-Texten.
+for (const s of SEED_SONGS) {
+  for (const p of s.parts) {
+    for (const st of p.steps) {
+      if (/-level$/.test(st.c) && typeof st.val === 'number' && !st.disp && LEVEL_DB[st.val] !== undefined) {
+        st.disp = fmtDb(st.val);
+        st.t = st.t.replace(/ca\. \d+/, `ca. ${st.disp}`);
+        st.val = knobDb(LEVEL_DB[st.val]);
+      }
+      st.t = st.t.replace(/LEVEL ca\. (\d)\b/g, (m, n) => (LEVEL_DB[n] !== undefined ? `LEVEL ca. ${fmtDb(n)}` : m));
+    }
+  }
+}

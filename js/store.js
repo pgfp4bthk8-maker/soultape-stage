@@ -155,7 +155,7 @@ function mark(parts) {
 }
 
 /** Aufbau eines Vorschlags ohne die Texte (Teile, Regler, Werte). */
-const shape = (parts) => JSON.stringify((parts || []).map((p) => [p.name, p.summary, (p.steps || []).map((x) => [x.s, x.c, x.sel, x.val, x.drawbars])]));
+const shape = (parts) => JSON.stringify((parts || []).map((p) => [p.name, p.summary, (p.steps || []).map((x) => [x.s, x.c, x.sel, x.drawbars])]));
 
 /**
  * Stammt der Soundvorschlag noch unverändert aus den Startdaten?

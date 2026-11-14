@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.6 – 14.11.2026
+- Anleitungen nennen jetzt den **Wert im Display** des Nord statt einer Reglerstellung: Der Nord speichert den Display-Wert, die Stellung des Knopfs stimmt nach einem Programmwechsel nicht mehr. Unter jedem Schritt steht gelb „Im Display: 300 ms“, „Im Display: −12 dB“ oder „Im Display: 3 (Skala 0–10)“.
+- Attack und Release stehen als Zeit (ms/s), Lautstärken (LEVEL) in dB, der Filter in Hz/kHz. Grundlage sind die am Gerät abgelesenen Werte (siehe docs/NORD-ELECTRO-7.md). Rotary-Drive und alle Effekt-Regler zeigen 0–10 und bleiben unverändert.
+- Bei Auswahl-LEDs steht „Die LED bei HALL muss leuchten“, bei Zugriegeln jede Stellung einzeln mit Skala 0–8.
+
 ## 0.1.5 – 14.11.2026
 - Neues Feld „Speicherplatz auf dem Nord“ pro Song (z. B. M 23 = Bank M, Seite 2, Platz 3). Der Platz steht groß in der Song-Ansicht vor dem Programmnamen und in der Songliste.
 - Vorbelegt mit den Plätzen vom 14.11.2026 aus der Programmliste des Nord Sound Managers. Nach dem Umsortieren auf dem Nord unter „Bearbeiten“ von Hand anpassen – das ist eine Zwischenlösung, bis die Setlisten den Platz ausrechnen.

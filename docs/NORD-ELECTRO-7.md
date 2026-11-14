@@ -24,6 +24,27 @@ Quelle: Nord Electro 7 73/HP User Manual (OS v1.2x, Edition C) und Fotos von Chr
   - Global Reverb (Stage, Room, Spring, Hall, Cathedral, Chorale; Bright/Dark; Dry/Wet; **LAYER SEND** = Shift+On für unterschiedliche Hallanteile pro Sektion)
 - **KB Split** mit Split-Punkt und X-Fade; jede Sektion per KB ZONE (LO/UP) zuordenbar.
 
+## Display-Werte der Drehregler (von Chris am Gerät abgelesen, 14.11.2026)
+
+**Wichtig:** Gespeichert wird der Wert im Display, nicht die Knopfstellung. Nach einem Programmwechsel stimmt die Stellung des Knopfs nicht mehr mit dem gespeicherten Wert überein; erst beim Anfassen springt der Wert auf die Knopfstellung. Anleitungen müssen deshalb den **Display-Wert mit Einheit** nennen („drehen, bis im Display … steht“), nicht eine Reglerstellung 0–10.
+
+| Regler | ganz links | Mitte | ganz rechts |
+|---|---|---|---|
+| Synth ATTACK | 0,5 ms | 1,2 s | 45 s |
+| Synth RELEASE | 3 ms | 1,2 s | 45 s |
+| Synth FREQ (Filter) | 14 Hz | 490 Hz | 32 kHz |
+| Synth LEVEL | Off | −12 dB | 0 dB |
+| Piano LEVEL | Off | −12 dB | 0 dB |
+| Orgel LEVEL | Off | −12 dB | 0 dB |
+| Rotary DRIVE | 0 | 5 | 10 |
+| MOD 1 RATE / AMOUNT | 0 | 5 | 10 |
+| Delay DRY/WET | 0 | 5 | 10 |
+| Compressor AMOUNT | 0 | 5 | 10 |
+| Amp Sim DRIVE | 0 | 5 | 10 |
+| Reverb DRY/WET | 0 | 5 | 10 |
+
+In der App: Schritte mit Zeit-, Frequenz- oder dB-Wert tragen das Feld `disp` (Display-Text, z. B. `'300 ms'`, `'−12 dB'`); `val` ist dort nur noch die ungefähre Knopfstellung für die Landkarte. Bei den 0–10-Reglern ist `val` selbst der Display-Wert.
+
 ## Programme
 
 - 500 Programmplätze in **20 Bänken A–T**, Auswahl mit PROGRAM-Rad oder PROGRAM-Tasten 1–5, PAGE blättert.
