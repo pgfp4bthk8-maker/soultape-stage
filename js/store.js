@@ -143,15 +143,53 @@ export function importBackup(text) {
   save();
 }
 
-/** Ergänzt fehlende Startsongs und erneuert die Soundvorschläge der Startsongs. Leadsheets bleiben unberührt. */
-export function refreshSeeds({ overwriteSounds = false } = {}) {
-  let added = 0, updated = 0;
+/** Hat der Song schon einen Soundvorschlag (oder eigene Eintragungen)? */
+const hasSound = (s) => (s.parts || []).some((p) => p.lex || p.summary || p.tips || (p.steps && p.steps.length));
+
+/** Sucht zu einem Startsong den vorhandenen Song – auch wenn er per Import (mit anderer ID) angelegt wurde. */
+function findForSeed(seed) {
+  const byId = getSong(seed.id);
+  if (byId) return byId;
+  const names = [seed.title, ...(seed.aliases || [])].map(norm).filter(Boolean);
+  let best = null, bestScore = 0;
+  for (const s of state.songs) {
+    for (const cand of [s.title, ...(s.aliases || [])]) {
+      const c = norm(cand);
+      if (!c) continue;
+      for (const t of names) {
+        const score = 1 - lev(t, c) / Math.max(t.length, c.length);
+        if (score > bestScore) { bestScore = score; best = s; }
+      }
+    }
+  }
+  return bestScore >= 0.8 ? best : null;
+}
+
+/**
+ * Gleicht die Songs mit den Startdaten ab. Leadsheets bleiben immer unberührt.
+ * - Songs ohne Soundvorschlag bekommen den Vorschlag aus den Startdaten (eigene Eintragungen bleiben).
+ * - addMissing: fehlende Startsongs ergänzen.
+ * - overwriteSounds: vorhandene Soundvorschläge auf den Auslieferungsstand zurücksetzen.
+ */
+export function refreshSeeds({ overwriteSounds = false, addMissing = true } = {}) {
+  let added = 0, updated = 0, filled = 0;
   for (const seed of SEED_SONGS) {
-    const s = getSong(seed.id);
-    if (!s) { state.songs.push(clone(seed)); added++; continue; }
+    const s = findForSeed(seed);
+    if (!s) {
+      if (addMissing) { state.songs.push(clone(seed)); added++; }
+      continue;
+    }
     if (overwriteSounds) { s.parts = clone(seed.parts); updated++; }
+    else if (!hasSound(s)) { s.parts = clone(seed.parts); filled++; }
+    if (!s.artist && seed.artist) s.artist = seed.artist;
+    if (!s.key && seed.key) s.key = seed.key;
+    if (!(s.tags && s.tags.length) && seed.tags.length) s.tags = [...seed.tags];
   }
   state.seedVersion = SEED_VERSION;
   save();
-  return { added, updated };
+  return { added, updated, filled };
 }
+
+// Neue Startdaten nach einem App-Update: still die Soundvorschläge für Songs nachtragen,
+// die noch keinen haben. Es wird nichts überschrieben und kein Song neu angelegt.
+if ((state.seedVersion || 0) < SEED_VERSION) refreshSeeds({ addMissing: false });

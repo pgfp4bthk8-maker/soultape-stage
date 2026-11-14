@@ -1,7 +1,7 @@
 // Service Worker: macht die App offline-fähig.
 // Bei jeder neuen Version CACHE hochzählen – dann lädt das iPad die neuen Dateien
 // still im Hintergrund, ohne Pop-up. Beim nächsten Start ist die neue Version aktiv.
-const CACHE = 'soultape-stage-v0.1.2';
+const CACHE = 'soultape-stage-v0.1.3';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/store.js', './js/data.js', './js/panel.js', './js/chordpro.js',
