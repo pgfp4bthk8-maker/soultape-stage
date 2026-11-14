@@ -1,15 +1,20 @@
 // Service Worker: macht die App offline-fähig.
 // Bei jeder neuen Version CACHE hochzählen – dann lädt das iPad die neuen Dateien
 // still im Hintergrund, ohne Pop-up. Beim nächsten Start ist die neue Version aktiv.
-const CACHE = 'soultape-stage-v0.1.10';
+const CACHE = 'soultape-stage-v0.1.11';
 const FILES = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/store.js', './js/data.js', './js/panel.js', './js/chordpro.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',
 ];
 
+// Wichtig: Dateien immer frisch vom Server holen (cache: 'reload'). GitHub Pages erlaubt dem Browser,
+// Dateien 10 Minuten zwischenzuspeichern – ohne 'reload' landete nach einem Update sonst die alte
+// app.js im neuen Cache, und die App zeigte weiter die alte Version (so passiert bei 0.1.10).
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -17,12 +22,13 @@ self.addEventListener('activate', (e) => {
     .then(() => self.clients.claim()));
 });
 
-// Erst aus dem Cache (schnell & offline), dann im Hintergrund aktualisieren.
+// Erst aus dem Cache (schnell & offline), dann im Hintergrund aktualisieren –
+// dabei beim Server nachfragen statt den Zwischenspeicher des Browsers zu nehmen (cache: 'no-cache').
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
   e.respondWith(caches.open(CACHE).then(async (c) => {
     const hit = await c.match(e.request, { ignoreSearch: true });
-    const net = fetch(e.request).then((r) => { if (r.ok) c.put(e.request, r.clone()); return r; }).catch(() => null);
+    const net = fetch(e.request.url, { cache: 'no-cache' }).then((r) => { if (r.ok) c.put(e.request, r.clone()); return r; }).catch(() => null);
     return hit || (await net) || c.match('./index.html');
   }));
 });
