@@ -14,6 +14,7 @@ function fresh() {
     schema: SCHEMA,
     seedVersion: SEED_VERSION,
     songs: clone(SEED_SONGS),
+    lists: [],
     settings: { notation: 'de', fontSize: 22, mode: 'prep' },
   };
 }
@@ -26,6 +27,7 @@ function load() {
     if (raw) {
       const d = JSON.parse(raw);
       if (d && Array.isArray(d.songs)) {
+        if (!Array.isArray(d.lists)) d.lists = [];
         d.settings = { notation: 'de', fontSize: 22, mode: 'prep', ...(d.settings || {}) };
         return d;
       }
@@ -68,6 +70,7 @@ export function newSong(partial = {}) {
 export function deleteSong(id) {
   const i = state.songs.findIndex((s) => s.id === id);
   if (i >= 0) state.songs.splice(i, 1);
+  for (const l of state.lists) l.items = l.items.filter((it) => it.type !== 'song' || it.id !== id);
   save();
 }
 
@@ -92,6 +95,44 @@ export function deleteSheet(song, id) {
   if (song.sheets.length <= 1) return false;
   song.sheets = song.sheets.filter((v) => v.id !== id);
   if (song.activeSheet === id) song.activeSheet = song.sheets[song.sheets.length - 1].id;
+  save();
+  return true;
+}
+
+// ---------- Setlisten und Probenlisten ----------
+// Eine Liste = benannte Reihenfolge von Songs. kind 'gig' (Auftritt, mit Pausen → Sets) oder 'probe'.
+// items: { type: 'song', id } | { type: 'break', name }
+// snapshots: festgehaltene Stände { id, name, created, items }
+
+export const getList = (id) => state.lists.find((l) => l.id === id);
+
+export function newList(kind, name, items = []) {
+  const l = { id: uid(), kind, name, date: '', created: new Date().toISOString(), items, snapshots: [] };
+  state.lists.push(l);
+  save();
+  return l;
+}
+
+export function deleteList(id) {
+  const i = state.lists.findIndex((l) => l.id === id);
+  if (i >= 0) state.lists.splice(i, 1);
+  save();
+}
+
+/** Hält den aktuellen Stand der Liste als Kopie fest. */
+export function snapshotList(list, name) {
+  const snap = { id: uid(), name, created: new Date().toISOString(), items: clone(list.items) };
+  list.snapshots = list.snapshots || [];
+  list.snapshots.unshift(snap);
+  save();
+  return snap;
+}
+
+/** Holt einen festgehaltenen Stand zurück. Der Stand selbst bleibt erhalten. */
+export function restoreSnapshot(list, snapId) {
+  const snap = (list.snapshots || []).find((x) => x.id === snapId);
+  if (!snap) return false;
+  list.items = clone(snap.items);
   save();
   return true;
 }
@@ -138,6 +179,7 @@ export function importBackup(text) {
   const d = JSON.parse(text);
   if (!d || !Array.isArray(d.songs)) throw new Error('Das ist keine gültige Sicherungsdatei.');
   state.songs = d.songs;
+  if (Array.isArray(d.lists)) state.lists = d.lists;   // alte Sicherungen ohne Listen lassen die Listen unberührt
   state.settings = { ...state.settings, ...(d.settings || {}) };
   state.seedVersion = d.seedVersion || state.seedVersion;
   save();

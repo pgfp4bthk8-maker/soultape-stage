@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.1.8 – 14.11.2026
+Erster Schritt der Setlisten.
+- Neuer Bereich **Setlisten**: beliebig viele Listen, jede mit eigenem Namen und optionalem Datum. Zwei Arten: **Auftritt** (Pausen teilen die Liste in Sets, ein Block nach „Zugabe“ heißt auch so) und **Probe** (einfache Liste der Stücke für die nächste Probe).
+- Reihenfolge ändern: Zeile am Griff ≡ mit dem Finger ziehen oder mit ▲/▼ verschieben; Songs unten antippen zum Hinzufügen, ✕ zum Entfernen. Jede Änderung wird sofort gespeichert.
+- Pro Set und für die ganze Liste stehen Anzahl und Spieldauer; fehlt bei Songs die Dauer, steht das dabei.
+- **Stand festhalten:** speichert die Reihenfolge als Kopie – mit eigenem Namen oder, wenn das Feld leer bleibt, mit Datum und Uhrzeit. Stände lassen sich ansehen und zurückholen; vor dem Zurückholen wird der jetzige Stand automatisch festgehalten.
+- **Bühne folgt der Liste:** Wird ein Song aus einer Liste geöffnet, blättern ◀/▶ in deren Reihenfolge. Oben steht „Liste · Set 2 · Song 14 von 37“, vor einer Pause steht im Weiter-Knopf „⏸ Pause – danach: …“. Aus der Songliste geöffnet, bleibt es alphabetisch.
+- **Aus Setlisten-Datei übernehmen:** liest aus einer ChordPro-/OnSong-Datei nur Titel und Reihenfolge und baut daraus eine Liste; leere Einträge wie „Pause“ oder „Zugabe“ werden zu Pausen. Titel, die nicht in der App sind, werden ausgelassen und genannt.
+- Listen sind im Backup enthalten.
+
 ## 0.1.7 – 14.11.2026
 - **Soundwechsel im Leadsheet:** Ein breiter, magentafarbener Balken „⇄ WECHSEL“ zeigt auf der Bühne genau an der Stelle, was am Nord zu tun ist – entweder ein Programmwechsel („M 24 Orgel“, der Speicherplatz steht groß in einem weißen Feld) oder ein Handgriff im selben Programm („Synth AN“, „Piano AUS“).
 - Setzen im Vorbereitungsmodus: in der Song-Ansicht „⇄ Soundwechsel setzen“ antippen, dann auf die Zeile tippen, vor der gewechselt wird. Ein Tipp auf einen vorhandenen Balken ändert oder entfernt ihn. Das Original bleibt erhalten; die Wechsel stehen in einer eigenen Version „Mit Soundwechseln“.

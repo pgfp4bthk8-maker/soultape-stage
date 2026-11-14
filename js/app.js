@@ -1,11 +1,12 @@
 // SoulTape Stage – Hauptlogik der Oberfläche
 import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activeSheet, deleteSheet,
-  matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk } from './store.js';
+  matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk,
+  getList, newList, deleteList, snapshotList, restoreSnapshot } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.7';
+export const APP_VERSION = '0.1.8';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -61,6 +62,7 @@ function shell(active, body) {
       <a class="brand" href="#/"><i></i>SoulTape Stage</a>
       <nav>
         <a href="#/" class="${active === 'songs' ? 'on' : ''}">Songs</a>
+        <a href="#/listen" class="${active === 'lists' ? 'on' : ''}">Setlisten</a>
         <a href="#/lexikon" class="${active === 'lex' ? 'on' : ''} prep-only">Lexikon</a>
         <a href="#/einstellungen" class="${active === 'set' ? 'on' : ''} prep-only">Einstellungen</a>
       </nav>
@@ -96,15 +98,20 @@ function viewSongs() {
   qi.oninput = () => { ui.search = qi.value; const pos = qi.selectionStart; viewSongs(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
   const add = $('#add');
   if (add) add.onclick = () => { const s = newSong(); location.hash = `#/bearbeiten/${s.id}`; };
+  // Aus der Songliste geöffnet → ◀/▶ blättert alphabetisch, nicht in einer Setlist
+  app.querySelectorAll('.songs a').forEach((a) => a.addEventListener('click', () => { state.settings.navList = null; persist(); }));
 }
 
 // ---------- Song-Ansicht (Bühne & Vorbereitung) ----------
 function viewSong(id) {
   const s = getSong(id);
   if (!s) { location.hash = '#/'; return; }
+  // Reihenfolge für ◀/▶: die gewählte Setlist, sonst alphabetisch
+  const ctx = listContext(id);
   const order = sortedSongs();
   const idx = order.findIndex((x) => x.id === id);
-  const prev = order[idx - 1], next = order[idx + 1];
+  const prev = ctx ? ctx.prev : order[idx - 1], next = ctx ? ctx.next : order[idx + 1];
+  const navPos = (x) => (ctx && x ? ` data-pos="${x === ctx.prev ? ctx.prevPos : ctx.nextPos}"` : '');
   if (ui.songId !== id) { ui = { ...ui, songId: id, part: 0, step: 0, guide: false, mark: false }; }
   if (isStage()) ui.mark = false;
   const part = s.parts?.[ui.part];
@@ -116,6 +123,7 @@ function viewSong(id) {
       <div class="titles">
         <h1>${esc(s.title)}</h1>
         <div class="muted">${esc(s.artist)}${s.durationSec ? ' · ' + fmtDur(s.durationSec) : ''}</div>
+        ${ctx ? `<a class="listctx" href="#/liste/${ctx.list.id}">${esc(ctx.list.name)}${ctx.setCount > 1 ? ` · Set ${ctx.setNo}` : ''} · Song ${ctx.songNo} von ${ctx.songCount}</a>` : ''}
       </div>
       <a class="btn prep-only" href="#/bearbeiten/${s.id}">Bearbeiten</a>
     </div>
@@ -145,9 +153,11 @@ function viewSong(id) {
     <div class="sheet${ui.mark ? ' marking' : ''}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
       `<p class="muted" style="font-size:17px">Noch kein Leadsheet. <span class="prep-only">Unter <a href="#/import">Leadsheets importieren</a> kannst du deine ChordPro-Datei einlesen.</span></p>`}</div>
     <div class="songnav">
-      ${prev ? `<a class="btn" href="#/song/${prev.id}">◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
-      ${next ? `<a class="btn" href="#/song/${next.id}">${esc(next.title)} ▶</a>` : '<span style="flex:1"></span>'}
+      ${prev ? `<a class="btn" href="#/song/${prev.id}"${navPos(prev)}>◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
+      ${next ? `<a class="btn" href="#/song/${next.id}"${navPos(next)}>${ctx && ctx.breakBefore ? `<span class="pausehint">⏸ ${esc(ctx.breakBefore)} – danach:</span> ` : ''}${esc(next.title)} ▶</a>`
+        : (ctx ? '<span class="btn" style="flex:1;opacity:.6">Ende der Liste</span>' : '<span style="flex:1"></span>')}
     </div>`);
+  app.querySelectorAll('.songnav a[data-pos]').forEach((a) => a.addEventListener('click', () => { state.settings.navList = { id: ctx.list.id, pos: +a.dataset.pos }; persist(); }));
 
   keepAwake(true);
   window.scrollTo(0, 0);
@@ -556,6 +566,237 @@ function importPreview(items) {
   </div>`;
 }
 
+// ---------- Setlisten und Probenlisten ----------
+const KIND = { gig: 'Auftritt', probe: 'Probe' };
+const today = () => new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const songItems = (l) => l.items.filter((it) => it.type === 'song' && getSong(it.id));
+
+/** Teilt eine Liste an den Pausen in Sets: [{ name, songs: [Song], sec, noDur }] */
+function setsOf(l) {
+  const sets = [{ name: '', songs: [] }];
+  for (const it of l.items) {
+    if (it.type === 'break') sets.push({ name: it.name, songs: [] });
+    else { const s = getSong(it.id); if (s) sets[sets.length - 1].songs.push(s); }
+  }
+  return sets.filter((x) => x.songs.length).map((x) => ({ ...x,
+    sec: x.songs.reduce((n, s) => n + (s.durationSec || 0), 0), noDur: x.songs.filter((s) => !s.durationSec).length }));
+}
+const durText = (sec, noDur) => (sec ? fmtDur(sec) : '') + (noDur ? `${sec ? ' + ' : ''}${noDur} ohne Dauer` : '') || '–';
+
+/** Wo steht der Song in der gerade gespielten Liste? Liefert Vorgänger/Nachfolger oder null. */
+function listContext(songId) {
+  const nav = state.settings.navList;
+  const l = nav && getList(nav.id);
+  if (!l) return null;
+  const isSong = (it) => it && it.type === 'song' && getSong(it.id);
+  let pos = isSong(l.items[nav.pos]) && l.items[nav.pos].id === songId ? nav.pos : l.items.findIndex((it) => isSong(it) && it.id === songId);
+  if (pos < 0) return null;
+  let prevPos = pos - 1; while (prevPos >= 0 && !isSong(l.items[prevPos])) prevPos--;
+  let nextPos = pos + 1, breakBefore = '';
+  while (nextPos < l.items.length && !isSong(l.items[nextPos])) { if (l.items[nextPos].type === 'break') breakBefore = l.items[nextPos].name || 'Pause'; nextPos++; }
+  const before = l.items.slice(0, pos + 1);
+  return {
+    list: l, pos,
+    prev: prevPos >= 0 ? getSong(l.items[prevPos].id) : null, prevPos,
+    next: nextPos < l.items.length ? getSong(l.items[nextPos].id) : null, nextPos,
+    breakBefore: nextPos < l.items.length ? breakBefore : '',
+    songNo: before.filter(isSong).length, songCount: songItems(l).length,
+    setNo: before.filter((it) => it.type === 'break').length + 1, setCount: l.items.filter((it) => it.type === 'break').length + 1,
+  };
+}
+
+function viewLists() {
+  const lists = [...state.lists].sort((a, b) => (b.date || b.created).localeCompare(a.date || a.created));
+  const card = (l) => {
+    const sets = setsOf(l), n = songItems(l).length;
+    const sec = sets.reduce((a, x) => a + x.sec, 0), noDur = sets.reduce((a, x) => a + x.noDur, 0);
+    return `<li><a href="#/liste/${l.id}">
+      <div><div class="t">${esc(l.name)}</div>
+        <div class="a">${KIND[l.kind] || 'Liste'}${l.date ? ' · ' + new Date(l.date).toLocaleDateString('de-DE') : ''} · ${n} Songs${l.kind === 'gig' && sets.length > 1 ? ` · ${sets.length} Sets` : ''}</div></div>
+      <div class="k">${durText(sec, noDur)}${(l.snapshots || []).length ? `<br>${l.snapshots.length} Stand/Stände` : ''}</div></a></li>`;
+  };
+  shell('lists', `
+    <div class="row" style="margin-bottom:12px">
+      <h1 style="margin:0;flex:1">Setlisten</h1>
+      <button class="btn primary prep-only" id="newGig">+ Auftritt</button>
+      <button class="btn prep-only" id="newProbe">+ Probe</button>
+      <!-- ohne accept-Filter, siehe Import: iOS graut .chopro sonst aus -->
+      <label class="btn prep-only">Aus Setlisten-Datei übernehmen<input type="file" id="listFile" hidden></label>
+    </div>
+    <ul class="songs">${lists.map(card).join('')}</ul>
+    ${lists.length ? '' : `<p class="muted">Noch keine Liste. <span class="prep-only">Lege einen Auftritt oder eine Probenliste an – oder übernimm die Reihenfolge aus einer Setlisten-Datei (z. B. aus OnSong). Dabei werden nur Titel und Reihenfolge gelesen; die Songs müssen schon in der App sein.</span></p>`}`);
+  const mk = (kind, name) => { const l = newList(kind, name); location.hash = `#/liste/${l.id}`; };
+  $('#newGig').onclick = () => mk('gig', `Auftritt ${today()}`);
+  $('#newProbe').onclick = () => mk('probe', `Probe ${today()}`);
+  $('#listFile').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const text = await f.text();
+    if (/\u0000/.test(text.slice(0, 4000)) || /^%PDF/.test(text)) { toast('Das ist keine Textdatei.'); return; }
+    const items = [], missing = [];
+    for (const x of splitSongs(text)) {
+      const title = (x.meta.title || '').trim();
+      if (!title) continue;
+      // Leere Einträge wie „Pause 😃“ oder „Zugabe“ trennen die Sets
+      if (analyze(x.raw).empty) { items.push({ type: 'break', name: title.replace(/[^\p{L}\p{N} .-]/gu, '').trim() || 'Pause' }); continue; }
+      const s = matchSong(title);
+      if (s) items.push({ type: 'song', id: s.id }); else missing.push(title);
+    }
+    if (!items.some((it) => it.type === 'song')) { toast('Keine bekannten Songs in der Datei gefunden'); return; }
+    const l = newList('gig', f.name.replace(/\.[^.]+$/, '').normalize('NFC'), items);
+    l.missing = missing; persist();
+    location.hash = `#/liste/${l.id}`;
+  };
+}
+
+function viewList(id) {
+  const l = getList(id);
+  if (!l) { location.hash = '#/listen'; return; }
+  const gig = l.kind === 'gig';
+  const sets = setsOf(l);
+  const total = sets.reduce((a, x) => a + x.sec, 0), totalNo = sets.reduce((a, x) => a + x.noDur, 0);
+  const inList = new Set(songItems(l).map((it) => it.id));
+  const q = (ui.listSearch || '').toLowerCase();
+  const pick = sortedSongs().filter((s) => !inList.has(s.id) && (!q || (s.title + ' ' + s.artist).toLowerCase().includes(q)));
+  const edit = `<span class="ed prep-only"><button class="btn ghost" data-up>▲</button><button class="btn ghost" data-down>▼</button><button class="btn ghost danger" data-rm>✕</button></span>`;
+  let setNo = 0, songNo = 0;
+  const setHead = (name) => {
+    const st = sets[setNo++];
+    // Nach einer „Zugabe“ heißt der Block so, sonst wird durchgezählt
+    return gig && st ? `<div class="sethead">${name ? esc(name) : `Set ${setNo}`} <span class="muted">· ${st.songs.length} ${st.songs.length === 1 ? 'Song' : 'Songs'} · ${durText(st.sec, st.noDur)}</span></div>` : '';
+  };
+  // Eine Set-Überschrift steht nur vor einem Song (zwei Pausen hintereinander ergeben kein leeres Set)
+  const isSongAt = (i) => { const it = l.items[i]; return !!(it && it.type === 'song' && getSong(it.id)); };
+  const head0 = isSongAt(0) ? setHead('') : '';
+  const rows = l.items.map((it, i) => {
+    if (it.type === 'break') {
+      return `<div class="lrow brk" data-i="${i}"><span class="drag prep-only">≡</span><span class="pz">⏸</span>
+        <input type="text" class="prep-only" data-brk="${i}" value="${esc(it.name)}" placeholder="Pause"><b class="stage-only">${esc(it.name || 'Pause')}</b>${edit}</div>${isSongAt(i + 1) ? setHead(!it.name || /pause/i.test(it.name) ? '' : it.name) : ''}`;
+    }
+    const s = getSong(it.id);
+    if (!s) return '';
+    songNo++;
+    return `<div class="lrow" data-i="${i}"><span class="drag prep-only">≡</span><span class="no">${songNo}</span>
+      <a class="lt" href="#/song/${s.id}" data-open="${i}"><span class="t">${esc(s.title)}</span><span class="a">${esc(s.artist)}</span></a>
+      <span class="meta"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.durationSec ? fmtDur(s.durationSec) : ''}</span>${edit}</div>`;
+  }).join('');
+
+  shell('lists', `
+    <div class="row"><a class="btn ghost" href="#/listen">◀ Setlisten</a><span style="flex:1"></span>
+      <button class="btn danger prep-only" id="delList">Liste löschen</button></div>
+    <div class="prep-only card stack" style="margin-top:12px">
+      <div class="grid2">
+        <label class="f"><span>Name</span><input type="text" id="l-name" value="${esc(l.name)}"></label>
+        <label class="f"><span>Datum (optional)</span><input type="date" id="l-date" value="${esc(l.date || '')}"></label>
+      </div>
+      <div class="row"><span class="chip ${gig ? 'on' : ''}" data-kind="gig">Auftritt (mit Sets und Pausen)</span><span class="chip ${gig ? '' : 'on'}" data-kind="probe">Probe</span></div>
+    </div>
+    <h1 class="stage-only">${esc(l.name)}</h1>
+    <div class="row" style="margin:14px 0 6px">
+      <b>${songItems(l).length} Songs · ${durText(total, totalNo)}</b><span style="flex:1"></span>
+      ${songItems(l).length ? '<button class="btn primary" id="startList">▶ Ab dem ersten Song</button>' : ''}
+    </div>
+    ${l.missing && l.missing.length ? `<div class="notice small prep-only">Nicht in der App gefunden und deshalb ausgelassen: ${esc(l.missing.join(', '))}. <button class="btn ghost" id="missOk">Hinweis ausblenden</button></div>` : ''}
+    <div class="listrows" id="rows">${head0}${rows}</div>
+    ${l.items.length ? '' : '<p class="muted">Die Liste ist noch leer. Füge unten Songs hinzu.</p>'}
+
+    <div class="prep-only">
+      <h2>Hinzufügen</h2>
+      <div class="card stack">
+        <div class="row"><input type="search" id="l-q" placeholder="Song suchen …" value="${esc(ui.listSearch || '')}" style="flex:1;min-width:200px">
+          ${gig ? '<button class="btn" id="addBreak">+ Pause</button>' : ''}</div>
+        <div class="row">${pick.map((s) => `<span class="chip" data-add="${s.id}">+ ${esc(s.title)}</span>`).join('') || '<span class="muted small">Kein weiterer Song gefunden.</span>'}</div>
+      </div>
+
+      <h2>Stand festhalten</h2>
+      <div class="card stack">
+        <p class="small muted" style="margin:0">Speichert die Reihenfolge von jetzt als Kopie, z. B. am Ende einer Probe. Ohne Namen wird Datum und Uhrzeit verwendet. Du arbeitest danach normal weiter und kannst jeden Stand zurückholen.</p>
+        <div class="row"><input type="text" id="snapName" placeholder="Stand ${esc(fmtDate(new Date().toISOString()))}" style="flex:1;min-width:200px">
+          <button class="btn primary" id="snapBtn">Stand festhalten</button></div>
+        ${(l.snapshots || []).map((x) => `
+          <div class="snap"><div style="flex:1"><b>${esc(x.name)}</b><div class="small muted">${fmtDate(x.created)} · ${x.items.filter((it) => it.type === 'song' && getSong(it.id)).length} Songs</div>
+            ${ui.snapOpen === x.id ? `<ol class="small">${x.items.map((it) => (it.type === 'break' ? `<li class="muted" style="list-style:none">⏸ ${esc(it.name || 'Pause')}</li>` : (getSong(it.id) ? `<li>${esc(getSong(it.id).title)}</li>` : ''))).join('')}</ol>` : ''}</div>
+            <button class="btn ghost" data-snapshow="${x.id}">${ui.snapOpen === x.id ? 'Zuklappen' : 'Ansehen'}</button>
+            <button class="btn" data-snapback="${x.id}">Zurückholen</button>
+            <button class="btn ghost danger" data-snapdel="${x.id}">✕</button></div>`).join('')}
+      </div>
+    </div>`);
+
+  const redraw = () => keepY(() => viewList(id));
+  const change = (fn) => { fn(); persist(); redraw(); };
+  const move = (from, to) => { if (to < 0 || to >= l.items.length || from === to) return; const [x] = l.items.splice(from, 1); l.items.splice(to, 0, x); };
+  // Song aus der Liste öffnen → ◀/▶ folgt ab jetzt dieser Liste
+  const openAt = (pos) => { state.settings.navList = { id: l.id, pos }; persist(); };
+  app.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', () => openAt(+a.dataset.open)));
+  const start = $('#startList');
+  if (start) start.onclick = () => { const pos = l.items.findIndex((it) => it.type === 'song' && getSong(it.id)); openAt(pos); location.hash = `#/song/${l.items[pos].id}`; };
+
+  app.querySelectorAll('.lrow').forEach((row) => {
+    const i = +row.dataset.i;
+    const b = (sel, fn) => { const el = $(sel, row); if (el) el.onclick = fn; };
+    b('[data-up]', () => change(() => move(i, i - 1)));
+    b('[data-down]', () => change(() => move(i, i + 1)));
+    b('[data-rm]', () => change(() => l.items.splice(i, 1)));
+  });
+  app.querySelectorAll('[data-brk]').forEach((el) => el.onchange = () => change(() => { l.items[+el.dataset.brk].name = el.value.trim(); }));
+  enableDrag($('#rows'), (from, to) => change(() => move(from, to)));
+
+  $('#l-name').onchange = (e) => { l.name = e.target.value.trim() || l.name; persist(); };
+  $('#l-date').onchange = (e) => { l.date = e.target.value; persist(); };
+  app.querySelectorAll('[data-kind]').forEach((c) => c.onclick = () => change(() => { l.kind = c.dataset.kind; }));
+  $('#delList').onclick = () => { if (confirm(`Liste „${l.name}“ mit allen festgehaltenen Ständen löschen? Die Songs selbst bleiben erhalten.`)) { deleteList(id); location.hash = '#/listen'; } };
+  const mo = $('#missOk'); if (mo) mo.onclick = () => change(() => { l.missing = []; });
+
+  const qi = $('#l-q');
+  qi.oninput = () => { ui.listSearch = qi.value; const pos = qi.selectionStart; redraw(); const n = $('#l-q'); n.focus(); n.setSelectionRange(pos, pos); };
+  app.querySelectorAll('[data-add]').forEach((c) => c.onclick = () => change(() => l.items.push({ type: 'song', id: c.dataset.add })));
+  const ab = $('#addBreak'); if (ab) ab.onclick = () => change(() => l.items.push({ type: 'break', name: 'Pause' }));
+
+  $('#snapBtn').onclick = () => {
+    const name = $('#snapName').value.trim() || `Stand ${fmtDate(new Date().toISOString())}`;
+    snapshotList(l, name); toast(`Festgehalten: ${name}`); redraw();
+  };
+  app.querySelectorAll('[data-snapshow]').forEach((b) => b.onclick = () => { ui.snapOpen = ui.snapOpen === b.dataset.snapshow ? null : b.dataset.snapshow; redraw(); });
+  app.querySelectorAll('[data-snapback]').forEach((b) => b.onclick = () => {
+    // Ohne Rückfrage, aber ohne Verlust: der jetzige Stand wird vorher automatisch festgehalten
+    snapshotList(l, `Vor dem Zurückholen ${fmtDate(new Date().toISOString())}`);
+    restoreSnapshot(l, b.dataset.snapback); toast('Stand zurückgeholt – der vorherige wurde festgehalten'); redraw();
+  });
+  app.querySelectorAll('[data-snapdel]').forEach((b) => b.onclick = () => {
+    if (!confirm('Diesen festgehaltenen Stand löschen?')) return;
+    change(() => { l.snapshots = l.snapshots.filter((x) => x.id !== b.dataset.snapdel); });
+  });
+}
+
+/** Zeilen am Griff ≡ mit dem Finger verschieben. onDrop(from, to) bekommt die Positionen in der Liste. */
+function enableDrag(box, onDrop) {
+  box.querySelectorAll('.drag').forEach((h) => {
+    h.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const row = h.closest('.lrow');
+      const rows = [...box.querySelectorAll('.lrow')];
+      const from = rows.indexOf(row);
+      let ins = from;
+      h.setPointerCapture(e.pointerId);
+      row.classList.add('dragging');
+      const clear = () => rows.forEach((r) => r.classList.remove('drop-before', 'drop-after'));
+      const onMove = (ev) => {
+        ins = rows.length;
+        for (let k = 0; k < rows.length; k++) { const b = rows[k].getBoundingClientRect(); if (ev.clientY < b.top + b.height / 2) { ins = k; break; } }
+        clear();
+        if (ins < rows.length) rows[ins].classList.add('drop-before'); else rows[rows.length - 1].classList.add('drop-after');
+        if (ev.clientY < 90) window.scrollBy(0, -14); else if (ev.clientY > window.innerHeight - 70) window.scrollBy(0, 14);
+      };
+      const onUp = () => {
+        h.removeEventListener('pointermove', onMove); h.removeEventListener('pointerup', onUp); h.removeEventListener('pointercancel', onUp);
+        row.classList.remove('dragging'); clear();
+        const to = ins > from ? ins - 1 : ins;
+        if (to !== from) onDrop(+rows[from].dataset.i, +rows[Math.min(to, rows.length - 1)].dataset.i);
+      };
+      h.addEventListener('pointermove', onMove); h.addEventListener('pointerup', onUp); h.addEventListener('pointercancel', onUp);
+    });
+  });
+}
+
 // ---------- Lexikon ----------
 function viewLexikon(focusId) {
   shell('lex', `
@@ -648,6 +889,8 @@ function route() {
   if (view === 'song' && arg) return viewSong(arg);
   if (view === 'bearbeiten' && arg) return viewEdit(arg);
   if (view === 'import') return viewImport();
+  if (view === 'listen') return viewLists();
+  if (view === 'liste' && arg) return viewList(arg);
   if (view === 'lexikon') return viewLexikon(arg);
   if (view === 'einstellungen') return viewSettings();
   ui.importItems = view === 'import' ? ui.importItems : null;
