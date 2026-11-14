@@ -5,7 +5,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey } from './chordpro.js';
 
-export const APP_VERSION = '0.1.3';
+export const APP_VERSION = '0.1.4';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -455,6 +455,7 @@ function viewLexikon(focusId) {
         <div>${esc(l.text)}</div>
         <div class="small muted">Beispiele: ${l.examples.map(esc).join(' · ')}</div>
         <div class="small"><b>Am Nord:</b> ${esc(SECTIONS[l.section].name)}-Sektion, Kategorie „${esc(l.cat)}“</div>
+        ${(l.nord || []).length ? `<div class="small"><b>Auf deinem Nord installiert:</b><br>${l.nord.map(esc).join('<br>')}</div>` : ''}
         <div class="small">💡 ${esc(l.tip)}</div>
         ${renderPanel(l.section, { c: l.section === 'organ' ? 'org-model' : l.section === 'piano' ? 'pno-library' : 'syn-library', sel: l.section === 'organ' ? (l.cat === 'B3' ? 'B3' : 'VOX') : undefined })}
       </div>`).join('')}</div>`);

@@ -93,6 +93,8 @@ Die erste Probedatei des Nutzers (liegt im claude.ai-Projekt des Nutzers, **nich
 
 **Bekannte Kleinigkeiten:**
 - Seit 0.1.3 haben alle 37 Songs der Auftritts-Setliste Soundvorschläge in `SEED_SONGS` (47 Einträge). `refreshSeeds()` in `js/store.js` ordnet sie importierten Songs über den Titel zu und füllt nur Songs ohne Sound; bei höherer `SEED_VERSION` passiert das still beim Start. **NDW-Medley ist nur ein Platzhalter** – den Nutzer fragen, welche Songs darin stecken. Die Kawai-Codes (`11A`, `33C` …) sind nicht entschlüsselt.
+- Seit 0.1.4 nennen die Anleitungen die genauen Klangnamen des Nord des Nutzers (`NORD_HAS`, `NORD_PIANO`, `NORD_SYNTH` in `js/data.js`). Quelle: Nord Sound Manager → File → **Export Sound Lists** → vier HTML-Dateien (Piano, Samp Lib, Synth Preset, Program) (Ablageort nicht im Repo). Bei neuen Klängen neu exportieren lassen. Die Program-Liste zeigt: der Nutzer hat für fast alle Songs schon Programmplätze (Bank M, N, O, P; „M11“ in seinen Notizen = Bank M, Programm 11) – viele in Bank O sehen aber nach leeren Platzhaltern aus. Noch nicht in der App abgebildet.
+- Geänderte Startvorschläge erreichen vorhandene Songs nur, wenn der Nutzer sie nicht selbst geändert hat (`seedMark`/`untouched()` in `js/store.js`); dazu `SEED_VERSION` hochzählen.
 - Daten liegen pro Gerät im Browser; PC → iPad nur über Backup-Datei. Den Nutzer regelmäßig an Backups erinnern.
 - **iOS-Dateiauswahl:** Kein `accept=".chopro,…"` an `<input type="file">` setzen – iOS kennt die Endung nicht und graut die Dateien aus (in 0.1.2 behoben). `.json` für Backups funktioniert.
 - Die Landkarten sind vereinfacht; einzelne Beschriftungen (z. B. EQ „MID“) sind angenähert. Fotos des echten Panels liegen im claude.ai-Projekt des Nutzers.
