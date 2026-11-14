@@ -5,7 +5,7 @@
 // Alle Einstellwerte sind Startpunkte (Skala 0–10 wie auf den Reglern).
 // Im Proberaum mit der Band prüfen und nach Gehör anpassen.
 
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 6;
 
 // ---------- Sound-Lexikon ----------
 export const LEXICON = [
@@ -775,12 +775,33 @@ export const SEED_SONGS = [
     ],
   }),
   song({
-    id: 'ndw-medley', title: 'NDW-Medley', artist: '', key: 'Bm', tags: ['Party', 'Mitsingen', 'Tanzflächenfüller'],
-    parts: whole('lead', 'Vorläufig: heller 80er-Synth + Klavier.',
-      [...sectionsOnly(['synth', 'piano']), ...synthHit({ type: 'ANALOG', cat: 'Lead', level: 6, release: 3 }),
-        ...piano({ cat: 'Grand', timbre: 'BRIGHT', level: 6 }),
-        focus('SYN'), ...reverb('ROOM', 2), ...store('NDW-Medley')],
-      'Dieser Vorschlag ist nur ein Platzhalter: Welche Songs im Medley stecken, ist hier nicht hinterlegt. Sobald das feststeht, bekommt jeder Teil seinen eigenen Sound.'),
+    // Reihenfolge von Chris (14.11.2026): Nena → Die Prinzen → Peter Schilling → Hubert Kah.
+    // Ziel: im Medley möglichst wenig umbauen – ein Programm für Teil 1–3 (nur Sektionen an/aus),
+    // ein zweites Programm für den Lead in Teil 4.
+    id: 'ndw-medley', title: 'NDW-Medley', artist: 'Nena / Die Prinzen / Peter Schilling / Hubert Kah', key: 'Bm',
+    tags: ['Party', 'Mitsingen', 'Tanzflächenfüller', 'Deutsch'],
+    parts: [
+      { name: '1 Irgendwie, irgendwo, irgendwann', lex: 'brass',
+        summary: 'Nena: breiter 80er-Synth für die Akkorde. Das Klavier ist schon geladen, aber noch aus.',
+        steps: [...sectionsOnly(['synth', 'piano']), ...synthHit({ type: 'ANALOG', cat: 'Brass', level: 6, release: 3 }),
+          ...piano({ cat: 'Grand', timbre: 'BRIGHT', level: 6 }),
+          off('piano', 'das Klavier kommt erst bei „Alles nur geklaut“.'),
+          focus('SYN'), ...reverb('ROOM', 2), ...store('NDW-Medley')],
+        tips: 'Akkorde in gleichmäßigen Achteln oder lang gehalten, nicht zu tief – unten spielt der Bass. Dieses eine Programm reicht für die ersten drei Songs: Du schaltest nur Piano und Synth an und aus.' },
+      { name: '2 Alles nur geklaut', lex: 'grand',
+        summary: 'Die Prinzen: heller Flügel, kurz und rhythmisch. Der Synth ist aus.',
+        steps: [on('piano', 'jetzt trägt das Klavier.'), off('synth', 'bis „Major Tom“.')],
+        tips: 'Akkorde kurz anschlagen, eher wie eine Rhythmusgitarre. Im Leadsheet an dieser Stelle einen Wechsel-Balken setzen: „Piano AN, Synth AUS“.' },
+      { name: '3 Major Tom', lex: 'brass',
+        summary: 'Peter Schilling: wieder der 80er-Synth. Strophe in pulsierenden Achteln, Refrain mit lang gehaltenen Akkorden.',
+        steps: [on('synth', 'derselbe Klang wie bei Nena.'), off('piano', 'das Klavier pausiert.')],
+        tips: 'In der Strophe einen Ton oder eine Quinte in gleichmäßigen Achteln wiederholen, im Refrain („Völlig losgelöst“) volle Akkorde halten. Wechsel-Balken: „Synth AN, Piano AUS“.' },
+      { name: '4 Sternenhimmel (zweites Programm)', lex: 'lead',
+        summary: 'Hubert Kah: heller Sägezahn-Synth für die Melodie-Hook, mehrstimmig spielbar.',
+        steps: [...sectionsOnly(['synth']), ...synthHit({ type: 'ANALOG', cat: 'Lead', level: 7, release: 3 }),
+          focus('SYN'), ...reverb('ROOM', 2), ...store('NDW Stern')],
+        tips: 'Der Nord hat nur eine Synth-Sektion, deshalb liegt dieser Klang auf einem eigenen Programm. Speichere ihn möglichst auf derselben Seite wie das Medley-Programm, dann wechselst du mit einer Programmtaste 1–5 (dein Platz O 25 ist der letzte seiner Seite – eventuell beide Programme umziehen). Wechsel-Balken im Leadsheet: zuerst den Speicherplatz schreiben, dann „Lead“. Die Hook rechts spielen, links die Akkorde dazu.' },
+    ],
   }),
   song({
     id: 'the-final-countdown', title: 'The Final Countdown', artist: 'Europe', key: 'F#m', tags: ['Mitsingen', 'Party'],
