@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.1.11 – 14.11.2026
+- Fehler behoben: Nach einem Update konnte das iPad weiter die alte Version anzeigen (so bei 0.1.10 passiert, wenn zwei Versionen kurz nacheinander erschienen). Ursache: Der Browser durfte Dateien von GitHub 10 Minuten zwischenspeichern, und beim Update landete so die alte Datei im neuen Speicher. Die App holt die Dateien bei einem Update jetzt immer frisch vom Server.
+
 ## 0.1.10 – 14.11.2026
 - **Zeilen direkt im Blatt ändern:** Im Vorbereitungsmodus über dem Leadsheet „✎ Im Blatt ändern“ antippen, dann auf die Zeile tippen. Genau dort klappt ein Feld mit dem Text dieser Zeile auf – zum Beispiel, um in der Probe einen falschen Akkord zu korrigieren, ohne die Stelle im Editor suchen zu müssen. Feld leeren = Zeile löschen, zusätzliche Zeile im Feld = neue Zeile.
 - Der Soundwechsel sitzt jetzt im selben Feld (aufklappbar „⇄ Soundwechsel vor dieser Zeile setzen“); der bisherige Knopf „⇄ Soundwechsel setzen“ heißt deshalb „✎ Im Blatt ändern“.
