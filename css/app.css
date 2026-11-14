@@ -108,6 +108,8 @@ body.stage .songs .t { font-size: 24px; }
 }
 .nordbox .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #ffb3b3; }
 .nordbox .prog { font-size: 26px; font-weight: 800; }
+.nordbox .slot { display: inline-block; margin-right: 12px; padding: 0 10px; border-radius: 8px; background: #fff; color: #7a1010; letter-spacing: .04em; }
+.badge.slot { color: var(--text, #fff); font-weight: 700; margin-right: 6px; }
 .nordbox .kawai { margin-left: auto; text-align: right; font-size: 13px; color: var(--muted); }
 .parts { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .parts button {
