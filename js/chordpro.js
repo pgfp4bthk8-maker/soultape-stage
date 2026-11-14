@@ -153,6 +153,18 @@ const normText = (s) => (s || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, ''
 // länger = Backing-Vocals oder gesprochener Einwurf
 const isHint = (t) => t.trim().split(/\s+/).length <= 4;
 
+// Eigene Direktive für Soundwechsel am Nord (andere Programme ignorieren unbekannte Direktiven)
+const SWITCH_NAMES = ['wechsel', 'soundwechsel', 'x_wechsel'];
+const SLOT_RE = /^([A-T])\s?(\d{2})(?=$|[\s,;:·–-])/;
+
+/** Baut die Rohtext-Zeile für einen Soundwechsel. */
+export const switchLine = (text) => `{wechsel: ${String(text).replace(/[{}\n\r]/g, ' ').trim()}}`;
+/** Liest den Text eines Soundwechsels aus einer Rohtext-Zeile (oder null). */
+export function switchText(line) {
+  const d = directive(line || '');
+  return d && SWITCH_NAMES.includes(d.name) ? d.value : null;
+}
+
 function directive(line) {
   const m = /^\{\s*([a-z_]+)\s*(?::\s*(.*?))?\s*\}\s*$/i.exec(line.trim());
   return m ? { name: m[1].toLowerCase(), value: (m[2] || '').trim() } : null;
@@ -256,10 +268,21 @@ export function parseSheet(raw) {
     out.push({ type: 'section', text, chorus: isCh });
   };
   let title = '', artist = '', titleLine = -2, inTab = false;
+  // Jede Zeile merkt sich ihre Zeilennummer im Rohtext (src) – damit lässt sich in der
+  // Song-Ansicht genau vor einer angetippten Zeile ein Soundwechsel einfügen.
+  const srcOf = lines.map((_, k) => k);
+  let tagged = 0, prevSrc = 0;
+  const tag = () => { for (; tagged < out.length; tagged++) out[tagged].src = prevSrc; };
   for (let i = 0; i < lines.length; i++) {
+    tag(); prevSrc = srcOf[i];
     const line = lines[i];
     const s = line.trim();
     const d = directive(s);
+    // Soundwechsel: {wechsel: M 24 – Orgel} oder {wechsel: Synth AN} → auffälliger Balken
+    if (d && SWITCH_NAMES.includes(d.name)) {
+      if (d.value) out.push({ type: 'switch', text: d.value });
+      continue;
+    }
     // Tabulatur-Block {sot} … {eot}: Zeilen unverändert in Festbreiten-Schrift
     if (inTab) {
       if (d && ['eot', 'end_of_tab'].includes(d.name)) { inTab = false; continue; }
@@ -270,7 +293,7 @@ export function parseSheet(raw) {
       const n = d.name;
       if (['sot', 'start_of_tab'].includes(n)) { inTab = true; continue; }
       // {inline: [F#] [E] [D]} → Inhalt wie eine normale Zeile behandeln
-      if (n === 'inline') { if (d.value) lines.splice(i + 1, 0, d.value); continue; }
+      if (n === 'inline') { if (d.value) { lines.splice(i + 1, 0, d.value); srcOf.splice(i + 1, 0, srcOf[i]); } continue; }
       if (['title', 't'].includes(n)) { title = d.value; titleLine = i; continue; }
       if (['subtitle', 'st', 'artist'].includes(n)) { artist = artist || d.value; continue; }
       if (['key', 'tempo', 'time', 'capo', 'duration', 'album', 'year'].includes(n)) continue;
@@ -371,6 +394,7 @@ export function parseSheet(raw) {
     // Hinweise in Klammern innerhalb der Zeile hervorheben, z. B. „(Lauf)“ oder „(2T)“
     push({ type: 'lyric', segs });
   }
+  tag();
   // Leerzeilen zwischen zwei Tabulatur-Zeilen entfernen (manche Vorlagen setzen jede Saite in einen eigenen Block)
   const noTabGaps = out.filter((l, i, a) => !(l.type === 'empty' && a[i - 1] && a[i - 1].type === 'tab'
     && (a.slice(i + 1).find((x) => x.type !== 'empty') || {}).type === 'tab'));
@@ -416,7 +440,15 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const ch = r.chorus ? ' chorus' : '';
+    const before = html.length;
     switch (r.type) {
+      case 'switch': {
+        // Programmplatz am Anfang („M 24 …“) groß hervorheben, Rest als Text
+        const m = SLOT_RE.exec(r.text);
+        const rest = m ? r.text.slice(m[0].length).replace(/^[\s,;:·–-]+/, '') : r.text;
+        html.push(`<div class="ln switch"><span class="sw-ico">⇄</span><span class="sw-lbl">Wechsel</span>${m ? `<span class="sw-slot">${m[1]} ${m[2]}</span>` : ''}${rest ? `<span class="sw-txt">${esc(rest)}</span>` : ''}</div>`);
+        break;
+      }
       case 'tab': {
         // aufeinanderfolgende Tab-Zeilen in einen Block; zu breite Tabs nur im Block seitlich verschiebbar
         const block = [];
@@ -468,6 +500,7 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
         break;
       }
     }
+    if (html.length > before && r.src !== undefined) html[before] = html[before].replace(/^<(div|pre) /, `<$1 data-src="${r.src}" `);
   }
   return html.join('');
 }
