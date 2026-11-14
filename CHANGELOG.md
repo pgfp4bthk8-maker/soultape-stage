@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.9 – 14.11.2026
+- **NDW-Medley** hat jetzt echte Soundvorschläge statt des Platzhalters – für alle vier Songs: Irgendwie, irgendwo, irgendwann (Nena), Alles nur geklaut (Die Prinzen), Major Tom (Peter Schilling), Sternenhimmel (Hubert Kah).
+- Aufbau für wenig Umbau im Medley: ein Programm für die ersten drei Songs (80er-Synth „1984 Brass“ und heller Flügel – du schaltest nur Piano und Synth an und aus), ein zweites Programm mit Synth-Lead für Sternenhimmel.
+- Der neue Vorschlag ersetzt den Platzhalter beim ersten Start still – außer du hast den Sound des Medleys selbst geändert.
+
 ## 0.1.8 – 14.11.2026
 Erster Schritt der Setlisten.
 - Neuer Bereich **Setlisten**: beliebig viele Listen, jede mit eigenem Namen und optionalem Datum. Zwei Arten: **Auftritt** (Pausen teilen die Liste in Sets, ein Block nach „Zugabe“ heißt auch so) und **Probe** (einfache Liste der Stücke für die nächste Probe).
