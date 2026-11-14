@@ -5,7 +5,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey } from './chordpro.js';
 
-export const APP_VERSION = '0.1.4';
+export const APP_VERSION = '0.1.5';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -88,7 +88,7 @@ function viewSongs() {
       <li><a href="#/song/${s.id}">
         <div><div class="t">${esc(s.title)}</div>
           <div class="a">${esc(s.artist)}${s.parts?.length > 1 ? ` · ${s.parts.length} Sounds` : ''}${activeSheet(s) ? ' · Leadsheet' : ''}</div></div>
-        <div class="k"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordStored ? '<span class="badge ok">auf dem Nord</span>' : '<span class="badge">noch nicht gespeichert</span>'}</div>
+        <div class="k"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.nordStored ? '<span class="badge ok">auf dem Nord</span>' : '<span class="badge">noch nicht gespeichert</span>'}</div>
       </a></li>`).join('')}
     </ul>
     ${list.length ? '' : '<p class="muted">Kein Song gefunden.</p>'}`);
@@ -119,7 +119,7 @@ function viewSong(id) {
       <a class="btn prep-only" href="#/bearbeiten/${s.id}">Bearbeiten</a>
     </div>
     <div class="nordbox">
-      <div><div class="lbl">Nord-Programm</div><div class="prog">${esc(s.nordProgram || s.title)}</div>
+      <div><div class="lbl">Nord-Programm</div><div class="prog">${s.nordSlot ? `<span class="slot">${esc(s.nordSlot)}</span>` : ''}${esc(s.nordProgram || s.title)}</div>
         ${s.nordStored ? '' : '<div class="small" style="color:#ffb3b3">Noch nicht auf dem Nord gespeichert</div>'}</div>
       ${s.kawai ? `<div class="kawai">Alter Kawai-Sound<br><b>${esc(s.kawai)}</b></div>` : ''}
     </div>
@@ -220,6 +220,7 @@ function viewEdit(id) {
         <label class="f"><span>Tonart (z. B. Am, F#, H)</span><input type="text" id="f-key" value="${esc(s.key)}"></label>
         <label class="f"><span>Dauer (mm:ss)</span><input type="text" id="f-dur" value="${esc(fmtDur(s.durationSec))}" placeholder="3:45"></label>
         <label class="f"><span>Programmname auf dem Nord</span><input type="text" id="f-nord" value="${esc(s.nordProgram)}"></label>
+        <label class="f"><span>Speicherplatz auf dem Nord (z. B. M 23)</span><input type="text" id="f-slot" value="${esc(s.nordSlot || '')}" placeholder="M 23"></label>
         <label class="f"><span>Alter Kawai-Sound</span><input type="text" id="f-kawai" value="${esc(s.kawai)}"></label>
       </div>
       <label class="row"><input type="checkbox" id="f-stored" ${s.nordStored ? 'checked' : ''} style="width:22px;height:22px"> Programm ist auf dem Nord gespeichert</label>
@@ -274,6 +275,7 @@ function viewEdit(id) {
   bind('#f-key', (e) => { s.key = e.target.value.trim(); persist(); });
   bind('#f-dur', (e) => { s.durationSec = parseDur(e.target.value); persist(); });
   bind('#f-nord', (e) => { s.nordProgram = e.target.value.trim(); persist(); });
+  bind('#f-slot', (e) => { s.nordSlot = e.target.value.trim().toUpperCase(); persist(); });
   bind('#f-kawai', (e) => { s.kawai = e.target.value.trim(); persist(); });
   bind('#f-notes', (e) => { s.notes = e.target.value; persist(); });
   bind('#f-stored', (e) => { s.nordStored = e.target.checked; persist(); });

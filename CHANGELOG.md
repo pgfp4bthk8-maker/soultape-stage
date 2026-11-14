@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.1.5 – 14.11.2026
+- Neues Feld „Speicherplatz auf dem Nord“ pro Song (z. B. M 23 = Bank M, Seite 2, Platz 3). Der Platz steht groß in der Song-Ansicht vor dem Programmnamen und in der Songliste.
+- Vorbelegt mit den Plätzen vom 14.11.2026 aus der Programmliste des Nord Sound Managers. Nach dem Umsortieren auf dem Nord unter „Bearbeiten“ von Hand anpassen – das ist eine Zwischenlösung, bis die Setlisten den Platz ausrechnen.
+
 ## 0.1.4 – 14.11.2026
 - Die Anleitungen nennen jetzt die genauen Klangnamen vom eigenen Nord (z. B. „EP1 Deep Timbre“ statt „ein Rhodes“, „OrchStrings Legato“ statt „Strings“), dazu jeweils zwei, drei Alternativen zum Ausprobieren. Grundlage ist die Liste aus dem Nord Sound Manager (File → Export Sound Lists, Stand 14.11.2026).
 - Sound-Lexikon: Bei jedem Klang steht „Auf deinem Nord installiert“ mit den passenden Namen.

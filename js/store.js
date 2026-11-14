@@ -200,6 +200,7 @@ export function refreshSeeds({ overwriteSounds = false, addMissing = true } = {}
     if (overwriteSounds) { setParts(s, seed); updated++; }
     else if (!hasSound(s)) { setParts(s, seed); filled++; }
     else if (untouched(s, seed) && mark(s.parts) !== mark(seed.parts)) { setParts(s, seed); filled++; }
+    if (!s.nordSlot && seed.nordSlot) s.nordSlot = seed.nordSlot;
     if (!s.artist && seed.artist) s.artist = seed.artist;
     if (!s.key && seed.key) s.key = seed.key;
     if (!(s.tags && s.tags.length) && seed.tags.length) s.tags = [...seed.tags];

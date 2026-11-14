@@ -5,7 +5,7 @@
 // Alle Einstellwerte sind Startpunkte (Skala 0–10 wie auf den Reglern).
 // Im Proberaum mit der Band prüfen und nach Gehör anpassen.
 
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 
 // ---------- Sound-Lexikon ----------
 export const LEXICON = [
@@ -204,7 +204,26 @@ const song = (o) => ({
   key: '', durationSec: null, tags: [], notes: '', kawai: '', nordStored: false,
   sheets: [], activeSheet: null, aliases: [], ...o,
   nordProgram: o.nordProgram || o.title,
+  nordSlot: o.nordSlot || NORD_SLOTS[o.id] || '',
 });
+
+// Speicherplätze auf Chris' Nord (Bank + Platz), Stand 14.11.2026 laut Programmliste aus dem
+// Nord Sound Manager. Nur Vorbelegung – die Plätze ändern sich, wenn vor einem Auftritt umsortiert wird.
+// Sobald es Setlisten gibt, soll die App den Platz aus der Reihenfolge ausrechnen.
+const NORD_SLOTS = {
+  denkmal: 'M 11', 'sweet-child-o-mine': 'M 12', 'castle-of-glass': 'M 22', californication: 'M 23',
+  'under-the-bridge': 'M 24', uninvited: 'M 25', 'my-immortal': 'M 31', 'dear-mr-president': 'M 32',
+  'another-brick-in-the-wall': 'M 33', 'here-i-go-again': 'M 34', 'word-up': 'M 35', 'long-train-runnin': 'M 41',
+  'born-to-be-wild': 'M 42', 'whiskey-in-the-jar': 'M 43', 'enter-sandman': 'M 44', 'when-i-come-around': 'M 45',
+  tubthumping: 'M 51', 'dont-stop-believin': 'M 52', 'if-everyone-cared': 'M 53', 'with-or-without-you': 'M 54',
+  try: 'N 14', smooth: 'N 15', medley: 'N 25',
+  'let-me-entertain-you': 'O 11', 'basket-case': 'O 12', 'all-the-small-things': 'O 13', narcotic: 'O 14',
+  westerland: 'O 15', 'schrei-nach-liebe': 'O 21', 'sex-on-fire': 'O 22', paranoid: 'O 23', runaway: 'O 24',
+  'ndw-medley': 'O 25', 'the-final-countdown': 'O 31', 'dont-look-back-in-anger': 'O 32', centerfold: 'O 33',
+  zombie: 'O 34', 'nothing-else-matters': 'O 35', 'not-gonna-take-it': 'O 41',
+  'summer-of-69': 'P 24', pride: 'P 25', 'hit-the-road-jack': 'P 31', trouble: 'P 32', 'so-what': 'P 33',
+  'use-somebody': 'P 34',
+};
 
 export const SEED_SONGS = [
   song({
