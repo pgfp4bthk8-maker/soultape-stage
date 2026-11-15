@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.19 – 15.11.2026
+- **Update mit einmal Öffnen:** Ist kurz nach dem Start eine neue Version fertig geladen, lädt sich die App einmal selbst neu – die Versionsnummer oben rechts springt dann nach wenigen Sekunden um. Bisher musste man die App dafür schließen und noch einmal öffnen.
+- Das passiert nur im Vorbereitungsmodus, nur in den ersten 30 Sekunden nach dem Start, nur auf den Übersichtsseiten (Songs, Setlisten, Lexikon, Einstellungen) und nicht während einer Eingabe. Im Bühnenmodus und in einem geöffneten Song lädt nie etwas neu – dort gilt weiter: neue Version beim nächsten Start.
+- Wirkt ab dem übernächsten Update, denn das Neuladen muss erst selbst auf dem Gerät angekommen sein.
+
 ## 0.1.18 – 15.11.2026
 - Pakete tragen jetzt die Version der App, mit der sie erstellt wurden. Läuft beim Empfänger eine ältere Version, sagt die App das klar und bittet ums Aktualisieren – statt einer irreführenden Meldung wie „Das Paket enthält keine Songs“ (so passiert mit einem Setlist-Paket auf Version 0.1.16). Wirkt ab dieser Version; ältere Versionen kennen den Hinweis noch nicht.
 - Fehlermeldungen beim Einspielen eines Pakets bleiben länger stehen.

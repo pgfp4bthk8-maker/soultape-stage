@@ -9,7 +9,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.18';
+export const APP_VERSION = '0.1.19';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -1212,5 +1212,24 @@ route();
 
 // ---------- Offline-Betrieb ----------
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  // Update bequemer machen: Ist kurz nach dem Start eine neue Version fertig geladen, lädt sich die App
+  // einmal selbst neu – dann reicht einmal Öffnen statt zweimal. Streng begrenzt, damit auf der Bühne
+  // und mitten in der Arbeit nie etwas neu lädt: nur Vorbereitungsmodus, nur in den ersten 30 Sekunden,
+  // nur auf Übersichtsseiten, nicht während einer Eingabe, höchstens einmal pro Start.
+  const hadWorker = !!navigator.serviceWorker.controller;   // beim allerersten Start gibt es nichts zu aktualisieren
+  const startedAt = Date.now();
+  let reloaded = false;
+  try { reloaded = sessionStorage.getItem('st-reloaded') === '1'; sessionStorage.removeItem('st-reloaded'); } catch (e) { /* egal */ }
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadWorker || reloaded || isStage()) return;
+    if (Date.now() - startedAt > 30000 || document.visibilityState !== 'visible') return;
+    const view = (location.hash || '#/').split('/')[1] || '';
+    if (!['', 'listen', 'lexikon', 'einstellungen'].includes(view)) return;
+    const el = document.activeElement;
+    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+    reloaded = true;
+    try { sessionStorage.setItem('st-reloaded', '1'); } catch (e) { return; }   // ohne Merker lieber nicht neu laden
+    location.reload();
+  });
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
