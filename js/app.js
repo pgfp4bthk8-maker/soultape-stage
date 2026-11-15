@@ -7,7 +7,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.13';
+export const APP_VERSION = '0.1.14';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -40,6 +40,20 @@ function download(name, text, type = 'text/plain') {
 const notation = () => state.settings.notation || 'de';
 const isStage = () => state.settings.mode === 'stage';
 
+// ---------- Profil: wer nutzt die App auf diesem Gerät, und was wird angezeigt ----------
+// Die Rolle ist nur eine Voreinstellung für die Anzeige-Schalter; jeder Schalter bleibt einzeln änderbar.
+const ROLES = {
+  keyboard: { name: 'Keyboard', show: { chords: true, nord: true } },
+  vocals: { name: 'Gesang', show: { chords: false, nord: false } },
+  guitar: { name: 'Gitarre', show: { chords: true, nord: false } },
+  bass: { name: 'Bass', show: { chords: true, nord: false } },
+  drums: { name: 'Schlagzeug', show: { chords: false, nord: false } },
+  mixer: { name: 'Mischpult', show: { chords: false, nord: false } },
+};
+const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen' };
+const profile = () => state.settings.profile || { name: '', role: 'keyboard' };
+const shows = (k) => (state.settings.show || {})[k] !== false;
+
 // ---------- Bildschirm anlassen (Wake Lock) ----------
 let wakeLock = null;
 async function keepAwake(on) {
@@ -66,6 +80,7 @@ function backupText(b) {
 function shell(active, body) {
   const bk = backupStatus();
   document.body.classList.toggle('stage', isStage());
+  document.body.classList.toggle('nonord', !shows('nord'));
   document.documentElement.style.setProperty('--font', (state.settings.fontSize || 22) + 'px');
   app.innerHTML = `
     <header class="top">
@@ -73,7 +88,7 @@ function shell(active, body) {
       <nav>
         <a href="#/" class="${active === 'songs' ? 'on' : ''}">Songs</a>
         <a href="#/listen" class="${active === 'lists' ? 'on' : ''}">Setlisten</a>
-        <a href="#/lexikon" class="${active === 'lex' ? 'on' : ''} prep-only">Lexikon</a>
+        <a href="#/lexikon" class="${active === 'lex' ? 'on' : ''} prep-only nord-only">Lexikon</a>
         <a href="#/einstellungen" class="${active === 'set' ? 'on' : ''} prep-only">Einstellungen<i class="bk bk-${bk.level}" title="${esc(backupText(bk))}"></i></a>
       </nav>
       <span class="spacer"></span>
@@ -101,8 +116,8 @@ function viewSongs() {
     <ul class="songs">${list.map((s) => `
       <li><a href="#/song/${s.id}">
         <div><div class="t">${esc(s.title)}</div>
-          <div class="a">${esc(s.artist)}${s.parts?.length > 1 ? ` · ${s.parts.length} Sounds` : ''}${activeSheet(s) ? ' · Leadsheet' : ''}</div></div>
-        <div class="k"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.nordStored ? '<span class="badge ok">auf dem Nord</span>' : '<span class="badge">noch nicht gespeichert</span>'}</div>
+          <div class="a">${esc(s.artist)}${s.parts?.length > 1 ? `<span class="nord-only"> · ${s.parts.length} Sounds</span>` : ''}${activeSheet(s) ? ' · Leadsheet' : ''}</div></div>
+        <div class="k"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot nord-only">${esc(s.nordSlot)}</span>` : ''}${s.nordStored ? '<span class="badge ok nord-only">auf dem Nord</span>' : '<span class="badge nord-only">noch nicht gespeichert</span>'}</div>
       </a></li>`).join('')}
     </ul>
     ${list.length ? '' : '<p class="muted">Kein Song gefunden.</p>'}`);
@@ -139,6 +154,7 @@ function viewSong(id) {
       </div>
       <a class="btn prep-only" href="#/bearbeiten/${s.id}">Bearbeiten</a>
     </div>
+    <div class="nord-only">
     <div class="nordbox">
       <div><div class="lbl">Nord-Programm</div><div class="prog">${s.nordSlot ? `<span class="slot">${esc(s.nordSlot)}</span>` : ''}${esc(s.nordProgram || s.title)}</div>
         ${s.nordStored ? '' : '<div class="small" style="color:#ffb3b3">Noch nicht auf dem Nord gespeichert</div>'}
@@ -153,6 +169,7 @@ function viewSong(id) {
         <button class="btn" id="guideBtn">${ui.guide ? 'Anleitung schließen' : `Anleitung am Nord (${part.steps.length} Schritte)`}</button>
         ${part.lex ? `<a class="btn ghost" href="#/lexikon/${part.lex}">Was ist das für ein Klang?</a>` : ''}</div>` : ''}
       ${ui.guide && part?.steps?.length ? guideHtml(part) : ''}` : ''}
+    </div>
 
     <div class="sheetbar">
       <div class="grp" title="Transponieren"><button id="trDown">−</button><span>${tr === 0 ? 'Original' : (tr > 0 ? '+' : '') + tr}<br><b style="color:var(--chord)">${esc(transposeKey(s.key, tr, notation()) || '–')}</b></span><button id="trUp">+</button></div>
@@ -162,7 +179,7 @@ function viewSong(id) {
       ${sheet ? `<span class="badge prep-only">${esc(sheet.name)}</span>` : ''}
     </div>
     ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
-    <div class="sheet${ui.mark ? ' marking' : ''}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
+    <div class="sheet${ui.mark ? ' marking' : (shows('chords') ? '' : ' nochords')}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
       `<p class="muted" style="font-size:17px">Noch kein Leadsheet. <span class="prep-only">Unter <a href="#/import">Leadsheets importieren</a> kannst du deine ChordPro-Datei einlesen.</span></p>`}</div>
     <div class="songnav">
       ${prev ? `<a class="btn" href="#/song/${prev.id}"${navPos(prev)}>◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
@@ -849,6 +866,17 @@ function viewSettings() {
   const prev = previousInfo();
   shell('set', `
     <h1>Einstellungen</h1>
+    <h2 style="margin-top:0">Mein Profil</h2>
+    <div class="card stack">
+      <p class="small muted" style="margin:0">Wer nutzt die App auf diesem Gerät? Die Rolle stellt ein, was angezeigt wird. Darunter kannst du jeden Punkt einzeln an- und ausschalten.</p>
+      <label class="f"><span>Name</span><input type="text" id="set-name" value="${esc(profile().name)}" placeholder="Vorname"></label>
+      <div><b>Rolle</b><div class="row" style="margin-top:6px">
+        ${Object.entries(ROLES).map(([k, r]) => `<span class="chip ${profile().role === k ? 'on' : ''}" data-role="${k}">${r.name}</span>`).join('')}</div></div>
+      <div><b>Anzeigen</b><div class="row" style="margin-top:6px">
+        ${Object.entries(SHOW).map(([k, name]) => `<span class="chip ${shows(k) ? 'on' : ''}" data-show="${k}">${shows(k) ? '✓ ' : ''}${name}</span>`).join('')}</div></div>
+    </div>
+
+    <h2>Darstellung</h2>
     <div class="card stack">
       <div><b>Akkord-Schreibweise</b><div class="row" style="margin-top:6px">
         <span class="chip ${st.notation === 'de' ? 'on' : ''}" data-not="de">Deutsch (H, B = Bb)</span>
@@ -858,8 +886,8 @@ function viewSettings() {
       <div><b>Schriftgröße Leadsheet:</b> ${st.fontSize}px <span class="muted small">(in der Song-Ansicht mit A−/A+ änderbar)</span></div>
     </div>
 
-    <h2>Mein Nord – Lautstärke</h2>
-    <div class="card stack">
+    <h2 class="nord-only">Mein Nord – Lautstärke</h2>
+    <div class="card stack nord-only">
       <p class="small muted" style="margin:0">Der MASTER LEVEL-Regler wird nicht im Programm gespeichert – es gilt immer die Stellung des Knopfs. Deshalb: einmal festlegen, markieren und nicht mehr anfassen. Der Mischer stellt seinen Eingang einmal auf den Referenz-Sound ein. Die Lautstärke pro Song regelst du über die LEVEL-Regler von Piano, Orgel und Synth (die werden gespeichert) und vergleichst jedes Programm vor dem Speichern mit dem Referenz-Sound.</p>
       <div class="grid2">
         <label class="f"><span>Feste Master-Stellung (z. B. 3 Uhr)</span><input type="text" id="set-master" value="${esc(st.nordMaster || '')}" placeholder="3 Uhr"></label>
@@ -895,6 +923,16 @@ function viewSettings() {
       Für die Bühne zusätzlich: Fokus „Nicht stören“ einschalten.</div>
 
     <p class="small muted" style="margin-top:24px">SoulTape Stage · Version ${APP_VERSION}</p>`);
+  $('#set-name').onchange = (e) => { st.profile = { ...profile(), name: e.target.value.trim() }; persist(); };
+  app.querySelectorAll('[data-role]').forEach((c) => c.onclick = () => {
+    st.profile = { ...profile(), role: c.dataset.role };
+    st.show = { ...ROLES[c.dataset.role].show };
+    persist(); viewSettings();
+  });
+  app.querySelectorAll('[data-show]').forEach((c) => c.onclick = () => {
+    st.show = { ...(st.show || {}), [c.dataset.show]: !shows(c.dataset.show) };
+    persist(); viewSettings();
+  });
   app.querySelectorAll('[data-not]').forEach((c) => c.onclick = () => { st.notation = c.dataset.not; persist(); viewSettings(); });
   app.querySelectorAll('[data-page]').forEach((c) => c.onclick = () => { st.pageMs = +c.dataset.page; persist(); viewSettings(); });
   $('#set-master').onchange = (e) => { st.nordMaster = e.target.value.trim(); persist(); };

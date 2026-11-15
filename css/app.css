@@ -96,6 +96,9 @@ label.f > span { display: block; font-size: 13px; color: var(--muted); margin-bo
 .bknote { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; text-decoration: none; color: var(--text); border-left-color: var(--red); }
 .prevbox { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
 .prevbox > div { flex: 1; min-width: 240px; }
+/* Anzeige nach Profil: Nord-Teil und Akkorde ausblendbar */
+body.nonord .nord-only, body.nonord .sheet .ln.kawai { display: none !important; }
+.sheet.nochords .ln.chords, .sheet.nochords .ln.tab, .sheet.nochords .sc { display: none; }
 .notice { border-left: 4px solid var(--chord); background: var(--bg2); padding: 10px 14px; border-radius: 8px; }
 
 /* ---------- Songliste ---------- */
