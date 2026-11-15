@@ -9,7 +9,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.17';
+export const APP_VERSION = '0.1.18';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -19,11 +19,11 @@ const TAGS = ['Opener', 'Abschluss', 'Zugabe', 'Mitsingen', 'Tanzflächenfüller
 let ui = { part: 0, step: 0, guide: false, importItems: null };
 
 // ---------- Hilfen ----------
-function toast(msg) {
+function toast(msg, ms = 2200) {
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2200);
+  setTimeout(() => t.remove(), ms);
 }
 function persist() { if (!save()) toast('Speichern fehlgeschlagen – bitte Backup exportieren.'); }
 const fmtDate = (iso) => new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -631,11 +631,25 @@ function importPreview(items) {
 }
 
 // ---------- Songs teilen: kleines Paket für Kollegen ----------
+/** Vergleicht zwei Versionsnummern wie '0.1.18' → negativ, 0 oder positiv. */
+function cmpVer(a, b) {
+  const x = String(a).split('.').map((n) => parseInt(n, 10) || 0), y = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
+  return 0;
+}
 const noSwitches = (text) => text.replace(/\r\n?/g, '\n').split('\n').filter((l) => switchText(l) === null).join('\n');
 
 /** Öffnet eine Paket-Datei (Text) in der Vorschau. Falsche Dateien → Hinweis. */
 function openPackage(text) {
-  try { ui.pkg = readPackage(text); ui.pkgSounds = false; } catch (err) { toast(err.message || 'Das ist keine Paket-Datei.'); return; }
+  // Stammt das Paket aus einer neueren App-Version? Dann kann diese Version es evtl. nicht richtig lesen.
+  let made = '';
+  try { made = String(JSON.parse(text).made || ''); } catch (e) { /* wird unten gemeldet */ }
+  const newer = made && cmpVer(made, APP_VERSION) > 0 ? made : '';
+  try { ui.pkg = readPackage(text); ui.pkg.newer = newer; ui.pkgSounds = false; } catch (err) {
+    if (newer) toast(`Dieses Paket wurde mit Version ${newer} erstellt, auf diesem Gerät läuft ${APP_VERSION}. Bitte die App mit WLAN öffnen, schließen, wieder öffnen – und es dann noch einmal versuchen.`, 9000);
+    else toast(err.message || 'Das ist keine Paket-Datei.', 4000);
+    return;
+  }
   if (location.hash === '#/teilen') viewShare(); else location.hash = '#/teilen';
 }
 
@@ -702,7 +716,7 @@ function viewShare() {
     if (!list.length && !sh.lists.size) { toast('Bitte zuerst eine Setlist oder Songs anhaken'); return; }
     const sounds = sh.sounds && shows('nord');
     download(`soultape-paket-${day}.json`, exportPackage(list.map((s) => s.id),
-      { sounds, from: profile().name, role: profile().role, textOf: sounds ? (t) => t : noSwitches, lists: [...sh.lists] }), 'application/json');
+      { sounds, from: profile().name, role: profile().role, textOf: sounds ? (t) => t : noSwitches, lists: [...sh.lists], made: APP_VERSION }), 'application/json');
     toast('Paket erstellt');
   };
   $('#shCho').onclick = () => {
@@ -752,6 +766,7 @@ function viewPackage() {
       pkg.lists.length ? `${pkg.lists.length} ${pkg.lists.length === 1 ? 'Setlist' : 'Setlisten'}` : '',
       pkg.items.length ? `${pkg.items.length} ${pkg.items.length === 1 ? 'Blatt' : 'Blättern'}` : ''].filter(Boolean).join(' und ')}.
       Es wird nichts überschrieben – deine eigenen Blätter bleiben und bleiben aktiv.</p>
+    ${pkg.newer ? `<div class="notice"><b>Das Paket wurde mit einer neueren Version erstellt</b> (${esc(pkg.newer)}, auf diesem Gerät läuft ${APP_VERSION}). Möglicherweise fehlt hier etwas. Am besten zuerst die App aktualisieren: mit WLAN öffnen, schließen, wieder öffnen – dann das Paket noch einmal einspielen.</div>` : ''}
     ${pkg.lists.length ? `<h2>Setlisten</h2><div class="stack">${pkg.lists.map((pl, i) => `
       <div class="card stack">
         <label class="row"><input type="checkbox" data-linc="${i}" ${pl.include ? 'checked' : ''} style="width:22px;height:22px">

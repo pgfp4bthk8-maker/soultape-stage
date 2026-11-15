@@ -318,7 +318,7 @@ export function importBackup(text) {
  * Packt die gewählten Songs (jeweils mit dem aktiven Blatt).
  * sounds: Soundvorschläge mitgeben · textOf: Umformung des Blatt-Texts (z. B. Soundwechsel entfernen)
  */
-export function exportPackage(ids, { sounds = false, from = '', role = '', textOf = (t) => t, lists = [] } = {}) {
+export function exportPackage(ids, { sounds = false, from = '', role = '', textOf = (t) => t, lists = [], made = '' } = {}) {
   // Setlisten: nur die Reihenfolge. Songs stehen mit Titel und Eckdaten drin (IDs gelten nur auf diesem Gerät),
   // damit der Empfänger sie seinen eigenen Songs zuordnen oder als leere Songs anlegen kann.
   const outLists = lists.map(getList).filter(Boolean).map((l) => ({
@@ -340,7 +340,7 @@ export function exportPackage(ids, { sounds = false, from = '', role = '', textO
     if (sounds) o.parts = clone(s.parts || []);
     return o;
   });
-  return JSON.stringify({ app: 'soultape-stage', type: 'paket', version: 1, from, role, created: new Date().toISOString(), sounds, songs, lists: outLists }, null, 2);
+  return JSON.stringify({ app: 'soultape-stage', type: 'paket', version: 1, made, from, role, created: new Date().toISOString(), sounds, songs, lists: outLists }, null, 2);
 }
 
 const sameName = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();

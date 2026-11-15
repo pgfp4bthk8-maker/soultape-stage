@@ -1,5 +1,9 @@
 # Änderungen
 
+## 0.1.18 – 15.11.2026
+- Pakete tragen jetzt die Version der App, mit der sie erstellt wurden. Läuft beim Empfänger eine ältere Version, sagt die App das klar und bittet ums Aktualisieren – statt einer irreführenden Meldung wie „Das Paket enthält keine Songs“ (so passiert mit einem Setlist-Paket auf Version 0.1.16). Wirkt ab dieser Version; ältere Versionen kennen den Hinweis noch nicht.
+- Fehlermeldungen beim Einspielen eines Pakets bleiben länger stehen.
+
 ## 0.1.17 – 15.11.2026
 - **Setlisten im Paket:** Unter „Songs teilen“ lassen sich jetzt auch Setlisten und Probenlisten mitgeben – nur die Reihenfolge mit Pausen. Jeder behält seine eigenen Blätter; an jeder Position öffnet sich beim Empfänger sein eigenes Blatt.
 - Beim Einspielen: Gibt es beim Empfänger schon eine Liste mit demselben Namen, wird ihre Reihenfolge aktualisiert und der bisherige Stand vorher automatisch festgehalten („Vor Paket von …“) – er lässt sich in der Liste zurückholen. Sonst wird eine neue Liste angelegt. In der Vorschau lässt sich das pro Liste umstellen.
