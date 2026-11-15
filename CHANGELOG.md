@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.1.15 – 15.11.2026
+- **Songs teilen** (Knopf in der Songliste, Vorbereitungsmodus): einzelne Songs anhaken – oder die Songs einer Setlist übernehmen – und als kleines Paket an einen Kollegen schicken (AirDrop, Mail, iCloud).
+- **Paket einspielen:** Der Empfänger sieht zuerst eine Vorschau und kann Songs abwählen oder anders zuordnen. Es wird nichts überschrieben: Neue Songs werden angelegt; hat er den Song schon, kommt das Blatt als zusätzliche Fassung „Von …“ dazu, sein eigenes Blatt bleibt aktiv.
+- Standardmäßig geht nur das Blatt mit, ohne Soundwechsel-Balken. Auf Wunsch gehen die Nord-Sounds und die Balken mit (für Kollegen am Keyboard); Sounds werden beim Empfänger nur bei Songs ohne eigenen Sound übernommen.
+- **Als ChordPro-Datei (für OnSong):** dieselbe Auswahl als ChordPro – für Kollegen, die die App noch nicht nutzen.
+- Schutz vor Verwechslung: Ein Paket lässt sich nicht als Sicherung einspielen (das hätte alle anderen Songs gelöscht) und umgekehrt.
+
 ## 0.1.14 – 15.11.2026
 - **Mein Profil** (Einstellungen, ganz oben): Name und Rolle – Keyboard, Gesang, Gitarre, Bass, Schlagzeug oder Mischpult. Erster Schritt, damit auch die Bandkollegen die App nutzen können.
 - Die Rolle stellt ein, was angezeigt wird; jeder Punkt lässt sich danach einzeln schalten:

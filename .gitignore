@@ -2,5 +2,6 @@
 *.chopro
 *.cho
 soultape-backup-*.json
+soultape-paket-*.json
 .DS_Store
 Thumbs.db

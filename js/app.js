@@ -2,12 +2,13 @@
 import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activeSheet, deleteSheet,
   matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk,
   getList, newList, deleteList, snapshotList, restoreSnapshot,
-  backupStatus, markBackupDone, BACKUP_DUE_DAYS, previousInfo, restorePrevious } from './store.js';
+  backupStatus, markBackupDone, BACKUP_DUE_DAYS, previousInfo, restorePrevious,
+  exportPackage, readPackage, packagePlan, applyPackage } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.14';
+export const APP_VERSION = '0.1.15';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -110,6 +111,7 @@ function viewSongs() {
     ${bk.level === 'alert' ? `<a class="notice bknote prep-only" href="#/einstellungen"><i class="bk bk-alert"></i><span><b>Sicherung fällig.</b> ${esc(backupText(bk))}. Tippen, um jetzt zu sichern.</span></a>` : ''}
     <div class="row" style="margin-bottom:12px">
       <input type="search" id="q" placeholder="Song suchen …" value="${esc(ui.search || '')}" style="flex:1;min-width:200px">
+      <a class="btn prep-only" href="#/teilen">Songs teilen</a>
       <a class="btn prep-only" href="#/import">Leadsheets importieren</a>
       <button class="btn primary prep-only" id="add">+ Song</button>
     </div>
@@ -555,6 +557,8 @@ function viewImport() {
           e.target.value = '';
           return;
         }
+        // Paket oder Sicherung aus dieser App statt ChordPro gewählt → an die richtige Stelle leiten
+        if (/^\s*\{\s*"app"\s*:\s*"soultape-stage"/.test(t)) { e.target.value = ''; openPackage(t); return; }
         run(t);
       });
     };
@@ -610,8 +614,124 @@ function importPreview(items) {
   </div>`;
 }
 
+// ---------- Songs teilen: kleines Paket für Kollegen ----------
+const noSwitches = (text) => text.replace(/\r\n?/g, '\n').split('\n').filter((l) => switchText(l) === null).join('\n');
+
+/** Öffnet eine Paket-Datei (Text) in der Vorschau. Falsche Dateien → Hinweis. */
+function openPackage(text) {
+  try { ui.pkg = readPackage(text); ui.pkgSounds = false; } catch (err) { toast(err.message || 'Das ist keine Paket-Datei.'); return; }
+  if (location.hash === '#/teilen') viewShare(); else location.hash = '#/teilen';
+}
+
+function viewShare() {
+  if (ui.pkg) return viewPackage();
+  const sh = ui.share || (ui.share = { sel: new Set(), sounds: false });
+  for (const id of [...sh.sel]) if (!getSong(id)) sh.sel.delete(id);
+  const songs = sortedSongs();
+  shell('songs', `
+    <div class="row"><a class="btn ghost" href="#/">◀ Songs</a></div>
+    <h1>Songs teilen</h1>
+    <p class="muted">Einzelne Songs als kleines Paket an einen Kollegen schicken – oder ein Paket von einem Kollegen einspielen.
+      Beim Einspielen wird nichts überschrieben: Hat der Empfänger den Song schon, kommt das Blatt als zusätzliche Fassung dazu.</p>
+
+    <h2>Paket erstellen</h2>
+    <div class="card stack">
+      <div class="row">
+        <button class="btn" id="shAll">Alle</button><button class="btn" id="shNone">Keine</button>
+        ${state.lists.length ? `<select id="shList" style="flex:1;min-width:200px"><option value="">Songs einer Setlist auswählen …</option>${state.lists.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select>` : ''}
+      </div>
+      <div class="picklist">${songs.map((s) => `
+        <label><input type="checkbox" data-pick="${s.id}" ${sh.sel.has(s.id) ? 'checked' : ''}>
+          <span class="t">${esc(s.title)}</span><span class="muted small">${esc(s.artist)}</span>${activeSheet(s) ? '' : '<span class="badge">ohne Blatt</span>'}</label>`).join('')}
+      </div>
+      <label class="row nord-only" style="flex-wrap:nowrap"><input type="checkbox" id="shSounds" ${sh.sounds ? 'checked' : ''} style="width:22px;height:22px;flex:none">
+        <span>Meine Nord-Sounds und Soundwechsel-Balken mitgeben <span class="muted small">(für Kollegen am Keyboard; sonst geht nur das Blatt mit)</span></span></label>
+      <div class="row"><b id="shCount"></b></div>
+      <div class="row"><button class="btn primary" id="shPack">Paket erstellen</button>
+        <button class="btn" id="shCho">Als ChordPro-Datei (für OnSong)</button></div>
+      <p class="small muted" style="margin:0">Das Paket ist eine Datei – verschicke sie per AirDrop, Mail oder iCloud. Mitgegeben wird jeweils die aktive Fassung des Blatts.</p>
+    </div>
+
+    <h2>Paket einspielen</h2>
+    <div class="card stack">
+      <p class="small muted" style="margin:0">Paket-Datei eines Kollegen wählen. Du siehst zuerst eine Vorschau und entscheidest, was übernommen wird.</p>
+      <input type="file" id="pkgFile" accept=".json,application/json">
+    </div>`);
+  const count = () => { $('#shCount').textContent = `${sh.sel.size} ${sh.sel.size === 1 ? 'Song' : 'Songs'} ausgewählt`; };
+  count();
+  app.querySelectorAll('[data-pick]').forEach((c) => c.onchange = () => { if (c.checked) sh.sel.add(c.dataset.pick); else sh.sel.delete(c.dataset.pick); count(); });
+  $('#shAll').onclick = () => { sh.sel = new Set(songs.map((s) => s.id)); keepY(viewShare); };
+  $('#shNone').onclick = () => { sh.sel = new Set(); keepY(viewShare); };
+  const sl = $('#shList');
+  if (sl) sl.onchange = () => { const l = getList(sl.value); if (l) { sh.sel = new Set(songItems(l).map((it) => it.id)); keepY(viewShare); } };
+  $('#shSounds').onchange = (e) => { sh.sounds = e.target.checked; };
+  const picked = () => songs.filter((s) => sh.sel.has(s.id));
+  const day = new Date().toISOString().slice(0, 10);
+  $('#shPack').onclick = () => {
+    const list = picked();
+    if (!list.length) { toast('Bitte zuerst Songs anhaken'); return; }
+    const sounds = sh.sounds && shows('nord');
+    download(`soultape-paket-${day}.json`, exportPackage(list.map((s) => s.id),
+      { sounds, from: profile().name, role: profile().role, textOf: sounds ? (t) => t : noSwitches }), 'application/json');
+    toast(`Paket mit ${list.length} ${list.length === 1 ? 'Song' : 'Songs'} erstellt`);
+  };
+  $('#shCho').onclick = () => {
+    const list = picked().filter(activeSheet);
+    if (!list.length) { toast('Keiner der gewählten Songs hat ein Blatt'); return; }
+    const parts = list.map((s) => toChordPro(s, { text: noSwitches(activeSheet(s).text) }));
+    download(`soultape-songs-${day}.chopro`, parts.join('\n{new_song}\n'));
+    toast(`${list.length} ${list.length === 1 ? 'Blatt' : 'Blätter'} als ChordPro gespeichert`);
+  };
+  $('#pkgFile').onchange = async (e) => { const f = e.target.files[0]; if (f) openPackage(await f.text()); };
+}
+
+/** Vorschau eines Pakets: was ist drin, was passiert beim Einspielen. */
+function viewPackage() {
+  const pkg = ui.pkg;
+  const opts = (sel) => `<option value="new" ${sel === 'new' ? 'selected' : ''}>➕ Als neuen Song anlegen</option>` +
+    sortedSongs().map((s) => `<option value="${s.id}" ${s.id === sel ? 'selected' : ''}>${esc(s.title)}</option>`).join('');
+  const planText = (it) => {
+    const p = packagePlan(it, ui.pkgSounds);
+    const out = [];
+    if (p.isNew) out.push('<span class="badge ok">Neuer Song</span>');
+    if (p.sheet === 'add') out.push(`<span class="badge ok">${p.isNew ? 'mit Blatt' : 'Blatt kommt als zusätzliche Fassung dazu'}</span>`);
+    if (p.sheet === 'dup') out.push('<span class="badge">Dieses Blatt hast du schon</span>');
+    if (p.sheet === 'none') out.push('<span class="badge">Kein Blatt im Paket</span>');
+    if (p.sounds) out.push('<span class="badge ok">Sounds werden übernommen</span>');
+    if (!p.isNew && p.sheet !== 'add' && !p.sounds) out.push('<span class="badge warn">Nichts zu tun</span>');
+    return out.join('');
+  };
+  shell('songs', `
+    <div class="row"><a class="btn ghost" href="#/">◀ Songs</a></div>
+    <h1>Paket einspielen</h1>
+    <p class="muted">Paket${pkg.from ? ` von <b>${esc(pkg.from)}</b>` : ''}${pkg.created ? ` vom ${fmtDate(pkg.created)}` : ''} mit ${pkg.items.length} ${pkg.items.length === 1 ? 'Song' : 'Songs'}.
+      Es wird nichts überschrieben – deine eigenen Blätter bleiben und bleiben aktiv.</p>
+    ${pkg.sounds ? `<label class="row card" style="flex-wrap:nowrap"><input type="checkbox" id="pkSounds" ${ui.pkgSounds ? 'checked' : ''} style="width:22px;height:22px;flex:none">
+      <span>Sounds aus dem Paket übernehmen <span class="muted small">(nur bei Songs, die bei dir noch keinen Sound haben)</span></span></label>` : ''}
+    <div class="stack">${pkg.items.map((it, i) => `
+      <div class="card stack">
+        <label class="row"><input type="checkbox" data-inc="${i}" ${it.include ? 'checked' : ''} style="width:22px;height:22px">
+          <b style="font-size:18px">${esc(it.song.title)}</b> <span class="muted">${esc(it.song.artist || '')}</span></label>
+        <div class="row small">${planText(it)}</div>
+        <label class="f"><span>Zuordnen zu</span><select data-target="${i}">${opts(it.target)}</select></label>
+      </div>`).join('')}
+      <div class="row"><button class="btn primary" id="pkDo">Einspielen</button><button class="btn ghost" id="pkCancel">Abbrechen</button></div>
+    </div>`);
+  app.querySelectorAll('[data-inc]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.inc].include = c.checked; });
+  app.querySelectorAll('[data-target]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.target].target = c.value; keepY(viewPackage); });
+  const ps = $('#pkSounds'); if (ps) ps.onchange = () => { ui.pkgSounds = ps.checked; keepY(viewPackage); };
+  $('#pkCancel').onclick = () => { ui.pkg = null; viewShare(); };
+  $('#pkDo').onclick = () => {
+    const r = applyPackage(pkg, { sounds: ui.pkgSounds });
+    ui.pkg = null;
+    if (!lastSaveOk()) toast('Speichern fehlgeschlagen – Speicher voll?');
+    else toast(`${r.created} neu angelegt, ${r.added} ${r.added === 1 ? 'Blatt' : 'Blätter'} dazugekommen${r.soundsSet ? `, ${r.soundsSet}× Sounds übernommen` : ''}`);
+    location.hash = '#/';
+  };
+}
+
 // ---------- Setlisten und Probenlisten ----------
-const KIND = { gig: 'Auftritt', probe: 'Probe' };
+const KIND ={ gig: 'Auftritt', probe: 'Probe' };
 const today = () => new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const songItems = (l) => l.items.filter((it) => it.type === 'song' && getSong(it.id));
 
@@ -979,9 +1099,11 @@ function route() {
   const h = location.hash || '#/';
   const [, view, arg] = h.split('/');
   if (view !== 'song') keepAwake(false);
+  if (view !== 'teilen') ui.pkg = null;
   if (view === 'song' && arg) return viewSong(arg);
   if (view === 'bearbeiten' && arg) return viewEdit(arg);
   if (view === 'import') return viewImport();
+  if (view === 'teilen') return viewShare();
   if (view === 'listen') return viewLists();
   if (view === 'liste' && arg) return viewList(arg);
   if (view === 'lexikon') return viewLexikon(arg);
