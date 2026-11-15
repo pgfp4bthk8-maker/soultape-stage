@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.1.16 – 15.11.2026
+- Die Versionsnummer steht jetzt klein oben rechts in der Kopfzeile – auf jedem Bildschirm sichtbar, ohne in die Einstellungen zu gehen.
+
 ## 0.1.15 – 15.11.2026
 - **Songs teilen** (Knopf in der Songliste, Vorbereitungsmodus): einzelne Songs anhaken – oder die Songs einer Setlist übernehmen – und als kleines Paket an einen Kollegen schicken (AirDrop, Mail, iCloud).
 - **Paket einspielen:** Der Empfänger sieht zuerst eine Vorschau und kann Songs abwählen oder anders zuordnen. Es wird nichts überschrieben: Neue Songs werden angelegt; hat er den Song schon, kommt das Blatt als zusätzliche Fassung „Von …“ dazu, sein eigenes Blatt bleibt aktiv.

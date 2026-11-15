@@ -8,7 +8,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.15';
+export const APP_VERSION = '0.1.16';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -93,6 +93,7 @@ function shell(active, body) {
         <a href="#/einstellungen" class="${active === 'set' ? 'on' : ''} prep-only">Einstellungen<i class="bk bk-${bk.level}" title="${esc(backupText(bk))}"></i></a>
       </nav>
       <span class="spacer"></span>
+      <span class="ver" title="Version der App">v${APP_VERSION}</span>
       <button class="mode ${isStage() ? 'stage' : ''}" id="modeBtn">${isStage() ? 'Bühne' : 'Vorbereitung'}</button>
     </header>
     <main>${body}</main>`;
