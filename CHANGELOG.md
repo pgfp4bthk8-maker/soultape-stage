@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.1.14 – 15.11.2026
+- **Mein Profil** (Einstellungen, ganz oben): Name und Rolle – Keyboard, Gesang, Gitarre, Bass, Schlagzeug oder Mischpult. Erster Schritt, damit auch die Bandkollegen die App nutzen können.
+- Die Rolle stellt ein, was angezeigt wird; jeder Punkt lässt sich danach einzeln schalten:
+  - **Akkorde im Blatt** – ausgeschaltet zeigt das Leadsheet nur Text, Abschnitte und Spielhinweise (z. B. für Sänger).
+  - **Nord-Sounds und Anleitungen** – ausgeschaltet verschwinden Nord-Programm, Soundvorschläge, Lexikon und der Lautstärke-Abschnitt.
+- Für vorhandene Nutzer ändert sich nichts: Voreinstellung ist Keyboard mit allem eingeschaltet.
+
 ## 0.1.13 – 15.11.2026
 - **Sicherheitsnetz beim Einspielen:** Bevor eine Sicherung eingespielt wird, legt die App den bisherigen Stand des Geräts (Songs, Leadsheets, Setlisten) automatisch beiseite. Unter Einstellungen → „Sicherung & Übertragung“ lässt er sich mit „Diesen Stand zurückholen“ wiederherstellen – etwa, wenn versehentlich eine zu alte Datei eingespielt wurde.
 - Es wird immer nur ein Stand aufbewahrt. Beim Zurückholen wird getauscht: Der gerade aktive Stand wird seinerseits beiseitegelegt, es geht also nichts verloren.
