@@ -2,12 +2,12 @@
 import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activeSheet, deleteSheet,
   matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk,
   getList, newList, deleteList, snapshotList, restoreSnapshot,
-  backupStatus, markBackupDone, BACKUP_DUE_DAYS } from './store.js';
+  backupStatus, markBackupDone, BACKUP_DUE_DAYS, previousInfo, restorePrevious } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.12';
+export const APP_VERSION = '0.1.13';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -846,6 +846,7 @@ function viewLexikon(focusId) {
 function viewSettings() {
   const st = state.settings;
   const bk = backupStatus();
+  const prev = previousInfo();
   shell('set', `
     <h1>Einstellungen</h1>
     <div class="card stack">
@@ -876,6 +877,7 @@ function viewSettings() {
       <div class="row"><button class="btn primary" id="exp">Backup exportieren</button>
         <label class="btn">Backup importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>
         <button class="btn" id="expCho">Alle Leadsheets als ChordPro</button></div>
+      ${prev ? `<div class="prevbox"><div><b>Beiseitegelegter Stand vom ${fmtDate(prev.saved)}</b><div class="small muted">${prev.songs} Songs, ${prev.lists} ${prev.lists === 1 ? 'Liste' : 'Listen'} – so sah dieses Gerät aus, bevor zuletzt eine Sicherung eingespielt oder ein Stand zurückgeholt wurde.</div></div><button class="btn" id="undoImp">Diesen Stand zurückholen</button></div>` : ''}
       ${lastSaveOk() ? '' : '<div class="notice">Achtung: Das letzte Speichern ist fehlgeschlagen.</div>'}
     </div>
 
@@ -912,8 +914,18 @@ function viewSettings() {
   } catch (e) { /* nicht unterstützt */ }
   $('#imp').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt.')) return;
-    try { importBackup(await f.text()); toast('Backup importiert'); route(); } catch (err) { toast(err.message || 'Import fehlgeschlagen'); }
+    if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt. Der jetzige Stand wird beiseitegelegt und lässt sich hier zurückholen.')) return;
+    try {
+      const r = importBackup(await f.text());
+      toast(!lastSaveOk() ? 'Speichern fehlgeschlagen – Speicher voll?' : r.kept ? 'Backup importiert – bisheriger Stand beiseitegelegt' : 'Backup importiert (bisheriger Stand konnte nicht beiseitegelegt werden)');
+      route();
+    } catch (err) { toast(err.message || 'Import fehlgeschlagen'); }
+  };
+  const undo = $('#undoImp');
+  if (undo) undo.onclick = () => {
+    if (!confirm(`Stand vom ${fmtDate(prev.saved)} zurückholen? Der jetzige Stand wird dafür beiseitegelegt – du kannst also wieder zurück.`)) return;
+    toast(restorePrevious() ? 'Stand zurückgeholt' : 'Zurückholen fehlgeschlagen');
+    route();
   };
   $('#expCho').onclick = () => {
     const parts = sortedSongs().filter(activeSheet).map((s) => toChordPro(s, activeSheet(s)));

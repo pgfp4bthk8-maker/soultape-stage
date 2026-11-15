@@ -197,8 +197,8 @@ function trackBackup() {
 }
 
 /** Sicherung wurde gerade exportiert (oder eingespielt): Stand merken. */
-export function markBackupDone() {
-  meta = { at: new Date().toISOString(), mark: fingerprint(), dirtySince: null };
+export function markBackupDone(at) {
+  meta = { at: at || new Date().toISOString(), mark: fingerprint(), dirtySince: null };
   saveMeta();
 }
 
@@ -220,15 +220,46 @@ export function exportBackup() {
   return JSON.stringify({ app: 'soultape-stage', exported: new Date().toISOString(), ...state }, null, 2);
 }
 
+// Sicherheitsnetz: Vor dem Einspielen wird der Stand des Geräts beiseitegelegt (immer nur einer).
+const PREV = 'soultape-stage-vorher';
+const snapshotNow = () => JSON.stringify({ saved: new Date().toISOString(), songs: state.songs, lists: state.lists, seedVersion: state.seedVersion });
+function readPrevious() {
+  try { const d = JSON.parse(localStorage.getItem(PREV)); return d && Array.isArray(d.songs) ? d : null; } catch (e) { return null; }
+}
+
+/** Gibt es einen beiseitegelegten Stand? → { saved, songs, lists } (Anzahlen) oder null */
+export function previousInfo() {
+  const d = readPrevious();
+  return d ? { saved: d.saved, songs: d.songs.length, lists: (d.lists || []).length } : null;
+}
+
+/** Tauscht den aktuellen Stand gegen den beiseitegelegten – der aktuelle wird dabei selbst beiseitegelegt. */
+export function restorePrevious() {
+  const d = readPrevious();
+  if (!d) return false;
+  const cur = snapshotNow();
+  state.songs = d.songs;
+  state.lists = Array.isArray(d.lists) ? d.lists : [];
+  state.seedVersion = d.seedVersion || state.seedVersion;
+  state.settings.navList = null;
+  try { localStorage.setItem(PREV, cur); } catch (e) { /* dann eben ohne Rückweg */ }
+  return save();
+}
+
+/** Spielt eine Sicherung ein. Rückgabe: { kept } – konnte der bisherige Stand beiseitegelegt werden? */
 export function importBackup(text) {
   const d = JSON.parse(text);
   if (!d || !Array.isArray(d.songs)) throw new Error('Das ist keine gültige Sicherungsdatei.');
+  let kept = true;
+  try { localStorage.setItem(PREV, snapshotNow()); } catch (e) { kept = false; }
   state.songs = d.songs;
   if (Array.isArray(d.lists)) state.lists = d.lists;   // alte Sicherungen ohne Listen lassen die Listen unberührt
   state.settings = { ...state.settings, ...(d.settings || {}) };
   state.seedVersion = d.seedVersion || state.seedVersion;
+  state.settings.navList = null;
   save();
-  markBackupDone();   // die Daten entsprechen jetzt genau der eingespielten Sicherung
+  markBackupDone(d.exported);   // die Daten entsprechen jetzt genau der eingespielten Sicherung
+  return { kept };
 }
 
 /** Hat der Song schon einen Soundvorschlag (oder eigene Eintragungen)? */
