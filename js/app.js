@@ -3,12 +3,13 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk,
   getList, newList, deleteList, snapshotList, restoreSnapshot,
   backupStatus, markBackupDone, BACKUP_DUE_DAYS, previousInfo, restorePrevious,
-  exportPackage, readPackage, packagePlan, applyPackage } from './store.js';
+  exportPackage, readPackage, packagePlan, applyPackage, listPlan,
+  songByNo, nextNo, setSongNo, numberAllSongs } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.16';
+export const APP_VERSION = '0.1.17';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -53,6 +54,10 @@ const ROLES = {
 };
 const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen' };
 const profile = () => state.settings.profile || { name: '', role: 'keyboard' };
+/** Songnummer als kleines Schild (leer, wenn der Song keine hat). */
+const noTag = (s) => (s.no ? `<span class="sno">${s.no}</span>` : '');
+/** Suchtext eines Songs: Titel, Interpret und Nummer. */
+const hay = (s) => `${s.title} ${s.artist} ${s.no || ''}`.toLowerCase();
 const shows = (k) => (state.settings.show || {})[k] !== false;
 
 // ---------- Bildschirm anlassen (Wake Lock) ----------
@@ -106,19 +111,21 @@ function shell(active, body) {
 // ---------- Songliste ----------
 function viewSongs() {
   const q = (ui.search || '').toLowerCase();
-  const list = sortedSongs().filter((s) => !q || (s.title + ' ' + s.artist).toLowerCase().includes(q));
+  const list = sortedSongs().filter((s) => !q || hay(s).includes(q));
+  // Nach einer Nummer gesucht → der Song mit genau dieser Nummer steht oben
+  if (/^\d+$/.test(q)) list.sort((a, b) => (b.no === +q) - (a.no === +q));
   const bk = backupStatus();
   shell('songs', `
     ${bk.level === 'alert' ? `<a class="notice bknote prep-only" href="#/einstellungen"><i class="bk bk-alert"></i><span><b>Sicherung fällig.</b> ${esc(backupText(bk))}. Tippen, um jetzt zu sichern.</span></a>` : ''}
     <div class="row" style="margin-bottom:12px">
-      <input type="search" id="q" placeholder="Song suchen …" value="${esc(ui.search || '')}" style="flex:1;min-width:200px">
+      <input type="search" id="q" placeholder="Song oder Nummer suchen …" value="${esc(ui.search || '')}" style="flex:1;min-width:200px">
       <a class="btn prep-only" href="#/teilen">Songs teilen</a>
       <a class="btn prep-only" href="#/import">Leadsheets importieren</a>
       <button class="btn primary prep-only" id="add">+ Song</button>
     </div>
     <ul class="songs">${list.map((s) => `
       <li><a href="#/song/${s.id}">
-        <div><div class="t">${esc(s.title)}</div>
+        ${s.no ? `<div class="sno big">${s.no}</div>` : ''}<div style="flex:1"><div class="t">${esc(s.title)}</div>
           <div class="a">${esc(s.artist)}${s.parts?.length > 1 ? `<span class="nord-only"> · ${s.parts.length} Sounds</span>` : ''}${activeSheet(s) ? ' · Leadsheet' : ''}</div></div>
         <div class="k"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot nord-only">${esc(s.nordSlot)}</span>` : ''}${s.nordStored ? '<span class="badge ok nord-only">auf dem Nord</span>' : '<span class="badge nord-only">noch nicht gespeichert</span>'}</div>
       </a></li>`).join('')}
@@ -151,7 +158,7 @@ function viewSong(id) {
   shell('songs', `
     <div class="songhead">
       <div class="titles">
-        <h1>${esc(s.title)}</h1>
+        <h1>${noTag(s)}${esc(s.title)}</h1>
         <div class="muted">${esc(s.artist)}${s.durationSec ? ' · ' + fmtDur(s.durationSec) : ''}</div>
         ${ctx ? `<a class="listctx" href="#/liste/${ctx.list.id}">${esc(ctx.list.name)}${ctx.setCount > 1 ? ` · Set ${ctx.setNo}` : ''} · Song ${ctx.songNo} von ${ctx.songCount}</a>` : ''}
       </div>
@@ -383,6 +390,7 @@ function viewEdit(id) {
         <label class="f"><span>Titel</span><input type="text" id="f-title" value="${esc(s.title)}"></label>
         <label class="f"><span>Interpret</span><input type="text" id="f-artist" value="${esc(s.artist)}"></label>
         <label class="f"><span>Tonart (z. B. Am, F#, H)</span><input type="text" id="f-key" value="${esc(s.key)}"></label>
+        <label class="f"><span>Songnummer (zum Zurufen in der Band)</span><input type="number" inputmode="numeric" min="1" max="9999" id="f-no" value="${s.no || ''}" placeholder="${state.settings.numbering ? 'z. B. ' + nextNo() : 'kommt über ein Paket'}"></label>
         <label class="f"><span>Dauer (mm:ss)</span><input type="text" id="f-dur" value="${esc(fmtDur(s.durationSec))}" placeholder="3:45"></label>
         <label class="f"><span>Programmname auf dem Nord</span><input type="text" id="f-nord" value="${esc(s.nordProgram)}"></label>
         <label class="f"><span>Speicherplatz auf dem Nord (z. B. M 23)</span><input type="text" id="f-slot" value="${esc(s.nordSlot || '')}" placeholder="M 23"></label>
@@ -441,6 +449,13 @@ function viewEdit(id) {
   bind('#f-key', (e) => { s.key = e.target.value.trim(); persist(); });
   bind('#f-dur', (e) => { s.durationSec = parseDur(e.target.value); persist(); });
   bind('#f-nord', (e) => { s.nordProgram = e.target.value.trim(); persist(); });
+  bind('#f-no', (e) => {
+    const v = e.target.value.trim();
+    if (setSongNo(s, v)) { if (!lastSaveOk()) toast('Speichern fehlgeschlagen – bitte Backup exportieren.'); return; }
+    const other = songByNo(v);
+    toast(other ? `Nummer ${v} gehört schon zu „${other.title}“` : 'Bitte eine Zahl von 1 bis 9999 eingeben');
+    e.target.value = s.no || '';
+  });
   bind('#f-slot', (e) => { s.nordSlot = e.target.value.trim().toUpperCase(); persist(); });
   bind('#f-kawai', (e) => { s.kawai = e.target.value.trim(); persist(); });
   bind('#f-notes', (e) => { s.notes = e.target.value; persist(); });
@@ -626,24 +641,31 @@ function openPackage(text) {
 
 function viewShare() {
   if (ui.pkg) return viewPackage();
-  const sh = ui.share || (ui.share = { sel: new Set(), sounds: false });
+  const sh = ui.share || (ui.share = { sel: new Set(), sounds: false, lists: new Set() });
   for (const id of [...sh.sel]) if (!getSong(id)) sh.sel.delete(id);
+  for (const id of [...sh.lists]) if (!getList(id)) sh.lists.delete(id);
   const songs = sortedSongs();
   shell('songs', `
     <div class="row"><a class="btn ghost" href="#/">◀ Songs</a></div>
     <h1>Songs teilen</h1>
-    <p class="muted">Einzelne Songs als kleines Paket an einen Kollegen schicken – oder ein Paket von einem Kollegen einspielen.
+    <p class="muted">Einzelne Songs und Setlisten als kleines Paket an einen Kollegen schicken – oder ein Paket von einem Kollegen einspielen.
       Beim Einspielen wird nichts überschrieben: Hat der Empfänger den Song schon, kommt das Blatt als zusätzliche Fassung dazu.</p>
 
     <h2>Paket erstellen</h2>
     <div class="card stack">
+      ${state.lists.length ? `<div><b>Setlisten mitgeben</b> <span class="muted small">(nur die Reihenfolge mit Pausen – jeder behält seine eigenen Blätter)</span>
+        <div class="picklist" style="margin-top:8px;max-height:none">${state.lists.map((l) => `
+          <label><input type="checkbox" data-picklist="${l.id}" ${sh.lists.has(l.id) ? 'checked' : ''}>
+            <span class="t">${esc(l.name)}</span><span class="muted small">${KIND[l.kind] || ''} · ${songItems(l).length} Songs</span>
+            <span style="flex:1"></span><button class="btn" data-listsongs="${l.id}" style="padding:6px 10px;font-size:14px">Blätter dieser Liste anhaken</button></label>`).join('')}
+        </div></div>` : ''}
+      <div><b>Blätter mitgeben</b> <span class="muted small">(für Kollegen, die dein Blatt zu einem Song haben möchten)</span></div>
       <div class="row">
         <button class="btn" id="shAll">Alle</button><button class="btn" id="shNone">Keine</button>
-        ${state.lists.length ? `<select id="shList" style="flex:1;min-width:200px"><option value="">Songs einer Setlist auswählen …</option>${state.lists.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}</select>` : ''}
       </div>
       <div class="picklist">${songs.map((s) => `
         <label><input type="checkbox" data-pick="${s.id}" ${sh.sel.has(s.id) ? 'checked' : ''}>
-          <span class="t">${esc(s.title)}</span><span class="muted small">${esc(s.artist)}</span>${activeSheet(s) ? '' : '<span class="badge">ohne Blatt</span>'}</label>`).join('')}
+          <span class="t">${esc(s.title)}</span>${noTag(s)}<span class="muted small">${esc(s.artist)}</span>${activeSheet(s) ? '' : '<span class="badge">ohne Blatt</span>'}</label>`).join('')}
       </div>
       <label class="row nord-only" style="flex-wrap:nowrap"><input type="checkbox" id="shSounds" ${sh.sounds ? 'checked' : ''} style="width:22px;height:22px;flex:none">
         <span>Meine Nord-Sounds und Soundwechsel-Balken mitgeben <span class="muted small">(für Kollegen am Keyboard; sonst geht nur das Blatt mit)</span></span></label>
@@ -658,23 +680,30 @@ function viewShare() {
       <p class="small muted" style="margin:0">Paket-Datei eines Kollegen wählen. Du siehst zuerst eine Vorschau und entscheidest, was übernommen wird.</p>
       <input type="file" id="pkgFile" accept=".json,application/json">
     </div>`);
-  const count = () => { $('#shCount').textContent = `${sh.sel.size} ${sh.sel.size === 1 ? 'Song' : 'Songs'} ausgewählt`; };
+  const count = () => {
+    const n = sh.sel.size, k = sh.lists.size;
+    $('#shCount').textContent = `${n} ${n === 1 ? 'Blatt' : 'Blätter'}${k ? ` und ${k} ${k === 1 ? 'Setlist' : 'Setlisten'}` : ''} ausgewählt`;
+  };
   count();
   app.querySelectorAll('[data-pick]').forEach((c) => c.onchange = () => { if (c.checked) sh.sel.add(c.dataset.pick); else sh.sel.delete(c.dataset.pick); count(); });
+  app.querySelectorAll('[data-picklist]').forEach((c) => c.onchange = () => { if (c.checked) sh.lists.add(c.dataset.picklist); else sh.lists.delete(c.dataset.picklist); count(); });
+  app.querySelectorAll('[data-listsongs]').forEach((b) => b.onclick = (e) => {
+    e.preventDefault();
+    const l = getList(b.dataset.listsongs);
+    if (l) { for (const it of songItems(l)) sh.sel.add(it.id); keepY(viewShare); }
+  });
   $('#shAll').onclick = () => { sh.sel = new Set(songs.map((s) => s.id)); keepY(viewShare); };
   $('#shNone').onclick = () => { sh.sel = new Set(); keepY(viewShare); };
-  const sl = $('#shList');
-  if (sl) sl.onchange = () => { const l = getList(sl.value); if (l) { sh.sel = new Set(songItems(l).map((it) => it.id)); keepY(viewShare); } };
   $('#shSounds').onchange = (e) => { sh.sounds = e.target.checked; };
   const picked = () => songs.filter((s) => sh.sel.has(s.id));
   const day = new Date().toISOString().slice(0, 10);
   $('#shPack').onclick = () => {
     const list = picked();
-    if (!list.length) { toast('Bitte zuerst Songs anhaken'); return; }
+    if (!list.length && !sh.lists.size) { toast('Bitte zuerst eine Setlist oder Songs anhaken'); return; }
     const sounds = sh.sounds && shows('nord');
     download(`soultape-paket-${day}.json`, exportPackage(list.map((s) => s.id),
-      { sounds, from: profile().name, role: profile().role, textOf: sounds ? (t) => t : noSwitches }), 'application/json');
-    toast(`Paket mit ${list.length} ${list.length === 1 ? 'Song' : 'Songs'} erstellt`);
+      { sounds, from: profile().name, role: profile().role, textOf: sounds ? (t) => t : noSwitches, lists: [...sh.lists] }), 'application/json');
+    toast('Paket erstellt');
   };
   $('#shCho').onclick = () => {
     const list = picked().filter(activeSheet);
@@ -695,39 +724,75 @@ function viewPackage() {
     const p = packagePlan(it, ui.pkgSounds);
     const out = [];
     if (p.isNew) out.push('<span class="badge ok">Neuer Song</span>');
+    else if (it.by === 'uid' && it.target === it.target0) out.push('<span class="badge">Sicher erkannt</span>');
+    else if (it.by === 'title' && it.target === it.target0) out.push('<span class="badge warn">Über den Titel zugeordnet – bitte prüfen</span>');
+    if (p.no === 'set') out.push(`<span class="badge ok">bekommt Nr. ${+it.song.no}</span>`);
+    if (p.no === 'taken') out.push(`<span class="badge warn">Nr. ${+it.song.no} gehört bei dir schon zu „${esc(songByNo(it.song.no)?.title || '')}“ – wird nicht übernommen</span>`);
+    if (p.no === 'differs') out.push(`<span class="badge warn">Hat bei dir eine andere Nummer (Paket: ${+it.song.no}) – deine bleibt</span>`);
     if (p.sheet === 'add') out.push(`<span class="badge ok">${p.isNew ? 'mit Blatt' : 'Blatt kommt als zusätzliche Fassung dazu'}</span>`);
     if (p.sheet === 'dup') out.push('<span class="badge">Dieses Blatt hast du schon</span>');
     if (p.sheet === 'none') out.push('<span class="badge">Kein Blatt im Paket</span>');
     if (p.sounds) out.push('<span class="badge ok">Sounds werden übernommen</span>');
-    if (!p.isNew && p.sheet !== 'add' && !p.sounds) out.push('<span class="badge warn">Nichts zu tun</span>');
+    if (!p.isNew && p.sheet !== 'add' && !p.sounds && p.no !== 'set') out.push('<span class="badge warn">Nichts zu tun</span>');
+    return out.join('');
+  };
+  const listPlanText = (pl) => {
+    const p = listPlan(pkg, pl);
+    const out = [`<span class="badge">${p.songs} Songs${p.breaks ? `, ${p.breaks} ${p.breaks === 1 ? 'Pause' : 'Pausen'}` : ''}</span>`];
+    if (p.same) out.push('<span class="badge warn">Reihenfolge ist schon gleich – nichts zu tun</span>');
+    else if (p.update) out.push('<span class="badge ok">Reihenfolge wird aktualisiert – dein bisheriger Stand wird festgehalten</span>');
+    else out.push('<span class="badge ok">Neue Liste</span>');
+    if (p.fresh) out.push(`<span class="badge">${p.fresh} ${p.fresh === 1 ? 'Song fehlt dir noch und wird' : 'Songs fehlen dir noch und werden'} angelegt</span>`);
     return out.join('');
   };
   shell('songs', `
     <div class="row"><a class="btn ghost" href="#/">◀ Songs</a></div>
     <h1>Paket einspielen</h1>
-    <p class="muted">Paket${pkg.from ? ` von <b>${esc(pkg.from)}</b>` : ''}${pkg.created ? ` vom ${fmtDate(pkg.created)}` : ''} mit ${pkg.items.length} ${pkg.items.length === 1 ? 'Song' : 'Songs'}.
+    <p class="muted">Paket${pkg.from ? ` von <b>${esc(pkg.from)}</b>` : ''}${pkg.created ? ` vom ${fmtDate(pkg.created)}` : ''} mit ${[
+      pkg.lists.length ? `${pkg.lists.length} ${pkg.lists.length === 1 ? 'Setlist' : 'Setlisten'}` : '',
+      pkg.items.length ? `${pkg.items.length} ${pkg.items.length === 1 ? 'Blatt' : 'Blättern'}` : ''].filter(Boolean).join(' und ')}.
       Es wird nichts überschrieben – deine eigenen Blätter bleiben und bleiben aktiv.</p>
+    ${pkg.lists.length ? `<h2>Setlisten</h2><div class="stack">${pkg.lists.map((pl, i) => `
+      <div class="card stack">
+        <label class="row"><input type="checkbox" data-linc="${i}" ${pl.include ? 'checked' : ''} style="width:22px;height:22px">
+          <b style="font-size:18px">${esc(pl.list.name)}</b> <span class="muted">${KIND[pl.list.kind] || ''}</span></label>
+        <div class="row small">${listPlanText(pl)}</div>
+        <label class="f"><span>Einspielen als</span><select data-ltarget="${i}">
+          <option value="new" ${pl.target === 'new' ? 'selected' : ''}>➕ Neue Liste anlegen</option>
+          ${state.lists.map((l) => `<option value="${l.id}" ${l.id === pl.target ? 'selected' : ''}>Vorhandene Liste aktualisieren: ${esc(l.name)}</option>`).join('')}</select></label>
+      </div>`).join('')}</div>` : ''}
+    ${pkg.items.length && pkg.lists.length ? '<h2>Blätter</h2>' : ''}
     ${pkg.sounds ? `<label class="row card" style="flex-wrap:nowrap"><input type="checkbox" id="pkSounds" ${ui.pkgSounds ? 'checked' : ''} style="width:22px;height:22px;flex:none">
       <span>Sounds aus dem Paket übernehmen <span class="muted small">(nur bei Songs, die bei dir noch keinen Sound haben)</span></span></label>` : ''}
     <div class="stack">${pkg.items.map((it, i) => `
       <div class="card stack">
         <label class="row"><input type="checkbox" data-inc="${i}" ${it.include ? 'checked' : ''} style="width:22px;height:22px">
-          <b style="font-size:18px">${esc(it.song.title)}</b> <span class="muted">${esc(it.song.artist || '')}</span></label>
+          <b style="font-size:18px">${esc(it.song.title)}</b>${+it.song.no ? `<span class="sno" style="margin-left:8px">${+it.song.no}</span>` : ''} <span class="muted">${esc(it.song.artist || '')}</span></label>
         <div class="row small">${planText(it)}</div>
         <label class="f"><span>Zuordnen zu</span><select data-target="${i}">${opts(it.target)}</select></label>
       </div>`).join('')}
       <div class="row"><button class="btn primary" id="pkDo">Einspielen</button><button class="btn ghost" id="pkCancel">Abbrechen</button></div>
     </div>`);
-  app.querySelectorAll('[data-inc]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.inc].include = c.checked; });
+  app.querySelectorAll('[data-inc]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.inc].include = c.checked; keepY(viewPackage); });
   app.querySelectorAll('[data-target]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.target].target = c.value; keepY(viewPackage); });
+  app.querySelectorAll('[data-linc]').forEach((c) => c.onchange = () => { pkg.lists[+c.dataset.linc].include = c.checked; });
+  app.querySelectorAll('[data-ltarget]').forEach((c) => c.onchange = () => { pkg.lists[+c.dataset.ltarget].target = c.value; keepY(viewPackage); });
   const ps = $('#pkSounds'); if (ps) ps.onchange = () => { ui.pkgSounds = ps.checked; keepY(viewPackage); };
   $('#pkCancel').onclick = () => { ui.pkg = null; viewShare(); };
   $('#pkDo').onclick = () => {
     const r = applyPackage(pkg, { sounds: ui.pkgSounds });
     ui.pkg = null;
     if (!lastSaveOk()) toast('Speichern fehlgeschlagen – Speicher voll?');
-    else toast(`${r.created} neu angelegt, ${r.added} ${r.added === 1 ? 'Blatt' : 'Blätter'} dazugekommen${r.soundsSet ? `, ${r.soundsSet}× Sounds übernommen` : ''}`);
-    location.hash = '#/';
+    else {
+      const parts = [];
+      if (r.listsNew) parts.push(`${r.listsNew} ${r.listsNew === 1 ? 'Liste' : 'Listen'} angelegt`);
+      if (r.listsUpdated) parts.push(`${r.listsUpdated} ${r.listsUpdated === 1 ? 'Liste' : 'Listen'} aktualisiert`);
+      if (r.created) parts.push(`${r.created} ${r.created === 1 ? 'Song' : 'Songs'} neu angelegt`);
+      if (r.added) parts.push(`${r.added} ${r.added === 1 ? 'Blatt' : 'Blätter'} dazugekommen`);
+      if (r.soundsSet) parts.push(`${r.soundsSet}× Sounds übernommen`);
+      toast(parts.join(', ') || 'Nichts zu tun – alles war schon vorhanden');
+    }
+    location.hash = r.listsNew || r.listsUpdated ? '#/listen' : '#/';
   };
 }
 
@@ -821,7 +886,7 @@ function viewList(id) {
   const total = sets.reduce((a, x) => a + x.sec, 0), totalNo = sets.reduce((a, x) => a + x.noDur, 0);
   const inList = new Set(songItems(l).map((it) => it.id));
   const q = (ui.listSearch || '').toLowerCase();
-  const pick = sortedSongs().filter((s) => !inList.has(s.id) && (!q || (s.title + ' ' + s.artist).toLowerCase().includes(q)));
+  const pick = sortedSongs().filter((s) => !inList.has(s.id) && (!q || hay(s).includes(q)));
   const edit = `<span class="ed prep-only"><button class="btn ghost" data-up>▲</button><button class="btn ghost" data-down>▼</button><button class="btn ghost danger" data-rm>✕</button></span>`;
   let setNo = 0, songNo = 0;
   const setHead = (name) => {
@@ -841,7 +906,7 @@ function viewList(id) {
     if (!s) return '';
     songNo++;
     return `<div class="lrow" data-i="${i}"><span class="drag prep-only">≡</span><span class="no">${songNo}</span>
-      <a class="lt" href="#/song/${s.id}" data-open="${i}"><span class="t">${esc(s.title)}</span><span class="a">${esc(s.artist)}</span></a>
+      <a class="lt" href="#/song/${s.id}" data-open="${i}"><span class="t">${esc(s.title)}${noTag(s)}</span><span class="a">${esc(s.artist)}</span></a>
       <span class="meta"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.durationSec ? fmtDur(s.durationSec) : ''}</span>${edit}</div>`;
   }).join('');
 
@@ -1007,6 +1072,13 @@ function viewSettings() {
       <div><b>Schriftgröße Leadsheet:</b> ${st.fontSize}px <span class="muted small">(in der Song-Ansicht mit A−/A+ änderbar)</span></div>
     </div>
 
+    <h2>Songnummern</h2>
+    <div class="card stack">
+      <p class="small muted" style="margin:0">Jeder Song kann eine feste Nummer bekommen, die ihr euch in der Probe zurufen könnt („die 12“). Damit keine Nummer doppelt vergeben wird, sollte <b>nur eine Person</b> in der Band Nummern vergeben – alle anderen bekommen sie über „Songs teilen“ mit dem Paket. Eine vergebene Nummer bleibt bei ihrem Song und wird nicht neu vergeben.</p>
+      <div class="small muted">${state.songs.filter((x) => x.no).length} von ${state.songs.length} Songs haben eine Nummer${st.numbering ? ' · neue Songs bekommen auf diesem Gerät automatisch die nächste freie Nummer' : ''}</div>
+      <div class="row"><button class="btn" id="numAll">Allen Songs ohne Nummer eine Nummer geben</button></div>
+    </div>
+
     <h2 class="nord-only">Mein Nord – Lautstärke</h2>
     <div class="card stack nord-only">
       <p class="small muted" style="margin:0">Der MASTER LEVEL-Regler wird nicht im Programm gespeichert – es gilt immer die Stellung des Knopfs. Deshalb: einmal festlegen, markieren und nicht mehr anfassen. Der Mischer stellt seinen Eingang einmal auf den Referenz-Sound ein. Die Lautstärke pro Song regelst du über die LEVEL-Regler von Piano, Orgel und Synth (die werden gespeichert) und vergleichst jedes Programm vor dem Speichern mit dem Referenz-Sound.</p>
@@ -1056,6 +1128,14 @@ function viewSettings() {
   });
   app.querySelectorAll('[data-not]').forEach((c) => c.onclick = () => { st.notation = c.dataset.not; persist(); viewSettings(); });
   app.querySelectorAll('[data-page]').forEach((c) => c.onclick = () => { st.pageMs = +c.dataset.page; persist(); viewSettings(); });
+  $('#numAll').onclick = () => {
+    const open = state.songs.filter((x) => !x.no).length;
+    if (!open) { toast('Alle Songs haben schon eine Nummer'); return; }
+    if (!confirm(`${open} Songs bekommen eine Nummer (alphabetisch, ab ${nextNo()}). Neue Songs werden auf diesem Gerät künftig automatisch nummeriert. Nur fortfahren, wenn du die Nummern für die Band vergibst.`)) return;
+    const n = numberAllSongs();
+    if (!lastSaveOk()) toast('Speichern fehlgeschlagen – bitte Backup exportieren.'); else toast(`${n} Songs nummeriert`);
+    viewSettings();
+  };
   $('#set-master').onchange = (e) => { st.nordMaster = e.target.value.trim(); persist(); };
   $('#set-ref').onchange = (e) => { st.nordRef = e.target.value.trim(); persist(); };
   $('#exp').onclick = () => {
