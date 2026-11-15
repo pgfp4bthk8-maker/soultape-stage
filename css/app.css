@@ -106,6 +106,10 @@ body.nonord .nord-only, body.nonord .sheet .ln.kawai { display: none !important;
 .picklist label:last-child { border-bottom: 0; }
 .picklist input { width: 22px; height: 22px; flex: none; }
 .picklist .t { font-weight: 600; }
+/* Songnummer */
+.sno { display: inline-block; min-width: 1.9em; padding: 1px 7px; margin: 0 8px 0 0; border: 1px solid var(--line); border-radius: 7px; background: var(--bg3); color: var(--text); font-size: .72em; font-weight: 700; text-align: center; vertical-align: .12em; font-variant-numeric: tabular-nums; }
+.lt .sno { margin: 0 0 0 8px; }
+.songs .sno.big { font-size: 20px; min-width: 2.6em; padding: 6px 6px; margin: 0; align-self: center; flex: none; }
 .notice { border-left: 4px solid var(--chord); background: var(--bg2); padding: 10px 14px; border-radius: 8px; }
 
 /* ---------- Songliste ---------- */

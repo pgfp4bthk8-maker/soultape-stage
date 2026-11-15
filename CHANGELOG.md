@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.1.17 – 15.11.2026
+- **Setlisten im Paket:** Unter „Songs teilen“ lassen sich jetzt auch Setlisten und Probenlisten mitgeben – nur die Reihenfolge mit Pausen. Jeder behält seine eigenen Blätter; an jeder Position öffnet sich beim Empfänger sein eigenes Blatt.
+- Beim Einspielen: Gibt es beim Empfänger schon eine Liste mit demselben Namen, wird ihre Reihenfolge aktualisiert und der bisherige Stand vorher automatisch festgehalten („Vor Paket von …“) – er lässt sich in der Liste zurückholen. Sonst wird eine neue Liste angelegt. In der Vorschau lässt sich das pro Liste umstellen.
+- Songs der Liste, die der Empfänger noch nicht hat, werden als leere Songs (Titel, Interpret, Tonart, Dauer) angelegt, damit die Liste vollständig ist.
+- Blätter gehen weiterhin nur für die eigens angehakten Songs mit; „Blätter dieser Liste anhaken“ wählt alle Songs einer Liste auf einmal.
+- **Songnummern:** Jeder Song kann eine feste Nummer bekommen, die ihr euch in der Probe zurufen könnt („die 12“). Sie steht in der Songliste, auf dem Blatt und in den Setlisten; die Suche findet Songs auch über die Nummer. Vergabe unter Einstellungen → „Songnummern“ (alphabetisch für alle Songs ohne Nummer) oder einzeln unter „Bearbeiten“. Nur eine Person in der Band sollte Nummern vergeben; die anderen bekommen sie mit dem Paket. Vergebene Nummern werden nicht neu vergeben.
+- **Sichere Zuordnung im Paket:** Jeder Song reist mit einer unsichtbaren Kennung. Beim ersten Einspielen wird noch über den Titel zugeordnet (die Vorschau bittet um Prüfung), danach erkennt die App den Song sicher wieder – auch wenn er beim Kollegen anders geschrieben ist oder umbenannt wurde.
+
 ## 0.1.16 – 15.11.2026
 - Die Versionsnummer steht jetzt klein oben rechts in der Kopfzeile – auf jedem Bildschirm sichtbar, ohne in die Einstellungen zu gehen.
 
