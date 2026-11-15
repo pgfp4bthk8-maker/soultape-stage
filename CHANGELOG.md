@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.1.12 – 15.11.2026
+- **Ampel für die Sicherung:** Die App merkt sich, wann zuletzt ein Backup exportiert wurde und ob es seitdem Änderungen an Songs, Leadsheets oder Setlisten gab. Ein Punkt neben „Einstellungen“ zeigt den Stand: grün = alles gesichert, gelb = es gibt neue Änderungen, rot = seit 7 Tagen ungesichert (oder noch nie gesichert).
+- Bei Rot steht zusätzlich ein Hinweis über der Songliste – nur im Vorbereitungsmodus. Auf der Bühne erscheint davon nichts.
+- Unter Einstellungen → „Sicherung & Übertragung“ stehen Datum und Uhrzeit der letzten Sicherung.
+- Beim Exportieren bittet die App den Browser, die Daten auf dem Gerät dauerhaft zu behalten.
+
 ## 0.1.11 – 14.11.2026
 - Fehler behoben: Nach einem Update konnte das iPad weiter die alte Version anzeigen (so bei 0.1.10 passiert, wenn zwei Versionen kurz nacheinander erschienen). Ursache: Der Browser durfte Dateien von GitHub 10 Minuten zwischenspeichern, und beim Update landete so die alte Datei im neuen Speicher. Die App holt die Dateien bei einem Update jetzt immer frisch vom Server.
 

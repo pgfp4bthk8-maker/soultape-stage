@@ -85,6 +85,15 @@ label.f > span { display: block; font-size: 13px; color: var(--muted); margin-bo
 .badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--bg3); color: var(--muted); }
 .badge.ok { color: var(--ok); }
 .badge.warn { color: var(--chord); }
+/* Ampel für die Sicherung */
+.bk { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--muted); }
+.bk-ok { background: var(--ok); }
+.bk-warn { background: var(--chord); }
+.bk-alert { background: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+.top nav a .bk { margin-left: 7px; vertical-align: 1px; }
+.bkline { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.bkline .bk { width: 14px; height: 14px; }
+.bknote { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; text-decoration: none; color: var(--text); border-left-color: var(--red); }
 .notice { border-left: 4px solid var(--chord); background: var(--bg2); padding: 10px 14px; border-radius: 8px; }
 
 /* ---------- Songliste ---------- */

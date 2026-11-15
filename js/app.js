@@ -1,12 +1,13 @@
 // SoulTape Stage – Hauptlogik der Oberfläche
 import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activeSheet, deleteSheet,
   matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk,
-  getList, newList, deleteList, snapshotList, restoreSnapshot } from './store.js';
+  getList, newList, deleteList, snapshotList, restoreSnapshot,
+  backupStatus, markBackupDone, BACKUP_DUE_DAYS } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.11';
+export const APP_VERSION = '0.1.12';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -53,8 +54,17 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && location.hash.startsWith('#/song/')) keepAwake(true);
 });
 
+// ---------- Stand der Sicherung (Ampel) ----------
+const dayText = (n) => n <= 0 ? 'heute' : n === 1 ? 'seit gestern' : `seit ${n} Tagen`;
+function backupText(b) {
+  if (b.level === 'ok') return `Alles gesichert – letzte Sicherung ${fmtDate(b.at)}`;
+  if (!b.at) return 'Auf diesem Gerät wurde noch keine Sicherung erstellt';
+  return `Ungesicherte Änderungen ${b.days <= 0 ? 'von heute' : dayText(b.days)} – letzte Sicherung ${fmtDate(b.at)}`;
+}
+
 // ---------- Rahmen ----------
 function shell(active, body) {
+  const bk = backupStatus();
   document.body.classList.toggle('stage', isStage());
   document.documentElement.style.setProperty('--font', (state.settings.fontSize || 22) + 'px');
   app.innerHTML = `
@@ -64,7 +74,7 @@ function shell(active, body) {
         <a href="#/" class="${active === 'songs' ? 'on' : ''}">Songs</a>
         <a href="#/listen" class="${active === 'lists' ? 'on' : ''}">Setlisten</a>
         <a href="#/lexikon" class="${active === 'lex' ? 'on' : ''} prep-only">Lexikon</a>
-        <a href="#/einstellungen" class="${active === 'set' ? 'on' : ''} prep-only">Einstellungen</a>
+        <a href="#/einstellungen" class="${active === 'set' ? 'on' : ''} prep-only">Einstellungen<i class="bk bk-${bk.level}" title="${esc(backupText(bk))}"></i></a>
       </nav>
       <span class="spacer"></span>
       <button class="mode ${isStage() ? 'stage' : ''}" id="modeBtn">${isStage() ? 'Bühne' : 'Vorbereitung'}</button>
@@ -80,7 +90,9 @@ function shell(active, body) {
 function viewSongs() {
   const q = (ui.search || '').toLowerCase();
   const list = sortedSongs().filter((s) => !q || (s.title + ' ' + s.artist).toLowerCase().includes(q));
+  const bk = backupStatus();
   shell('songs', `
+    ${bk.level === 'alert' ? `<a class="notice bknote prep-only" href="#/einstellungen"><i class="bk bk-alert"></i><span><b>Sicherung fällig.</b> ${esc(backupText(bk))}. Tippen, um jetzt zu sichern.</span></a>` : ''}
     <div class="row" style="margin-bottom:12px">
       <input type="search" id="q" placeholder="Song suchen …" value="${esc(ui.search || '')}" style="flex:1;min-width:200px">
       <a class="btn prep-only" href="#/import">Leadsheets importieren</a>
@@ -833,6 +845,7 @@ function viewLexikon(focusId) {
 // ---------- Einstellungen ----------
 function viewSettings() {
   const st = state.settings;
+  const bk = backupStatus();
   shell('set', `
     <h1>Einstellungen</h1>
     <div class="card stack">
@@ -857,6 +870,9 @@ function viewSettings() {
     <h2>Sicherung & Übertragung</h2>
     <div class="card stack">
       <p class="small muted" style="margin:0">Deine Daten liegen nur auf diesem Gerät. Zum Übertragen vom PC aufs iPad: hier exportieren, Datei aufs iPad bringen (z. B. per Mail oder iCloud) und dort importieren.</p>
+      <div class="bkline"><i class="bk bk-${bk.level}"></i><span>${esc(backupText(bk))}</span></div>
+      <p class="small muted" style="margin:0">Grün = alles gesichert · Gelb = es gibt neue Änderungen · Rot = seit ${BACKUP_DUE_DAYS} Tagen ungesichert. Die Sicherungsdatei am besten in iCloud Drive ablegen – liegt sie nur auf dem iPad, hilft sie nicht, wenn das iPad ausfällt.</p>
+      <div class="small muted" id="persistInfo"></div>
       <div class="row"><button class="btn primary" id="exp">Backup exportieren</button>
         <label class="btn">Backup importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>
         <button class="btn" id="expCho">Alle Leadsheets als ChordPro</button></div>
@@ -881,7 +897,19 @@ function viewSettings() {
   app.querySelectorAll('[data-page]').forEach((c) => c.onclick = () => { st.pageMs = +c.dataset.page; persist(); viewSettings(); });
   $('#set-master').onchange = (e) => { st.nordMaster = e.target.value.trim(); persist(); };
   $('#set-ref').onchange = (e) => { st.nordRef = e.target.value.trim(); persist(); };
-  $('#exp').onclick = () => download(`soultape-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), 'application/json');
+  $('#exp').onclick = () => {
+    download(`soultape-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), 'application/json');
+    markBackupDone();
+    // Bei der Gelegenheit den Browser bitten, die Daten dauerhaft zu behalten (kein Dialog in Safari)
+    try { navigator.storage?.persist?.().catch(() => {}); } catch (e) { /* nicht unterstützt */ }
+    setTimeout(viewSettings, 600);
+  };
+  try {
+    navigator.storage?.persisted?.().then((ok) => {
+      const el = $('#persistInfo');
+      if (el && ok) el.textContent = 'Der Browser hat zugesagt, die Daten auf diesem Gerät dauerhaft zu behalten.';
+    }).catch(() => {});
+  } catch (e) { /* nicht unterstützt */ }
   $('#imp').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
     if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt.')) return;
