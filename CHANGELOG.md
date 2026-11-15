@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.13 – 15.11.2026
+- **Sicherheitsnetz beim Einspielen:** Bevor eine Sicherung eingespielt wird, legt die App den bisherigen Stand des Geräts (Songs, Leadsheets, Setlisten) automatisch beiseite. Unter Einstellungen → „Sicherung & Übertragung“ lässt er sich mit „Diesen Stand zurückholen“ wiederherstellen – etwa, wenn versehentlich eine zu alte Datei eingespielt wurde.
+- Es wird immer nur ein Stand aufbewahrt. Beim Zurückholen wird getauscht: Der gerade aktive Stand wird seinerseits beiseitegelegt, es geht also nichts verloren.
+- Die Ampel nennt nach dem Einspielen das Datum der eingespielten Sicherungsdatei, nicht den Zeitpunkt des Einspielens.
+
 ## 0.1.12 – 15.11.2026
 - **Ampel für die Sicherung:** Die App merkt sich, wann zuletzt ein Backup exportiert wurde und ob es seitdem Änderungen an Songs, Leadsheets oder Setlisten gab. Ein Punkt neben „Einstellungen“ zeigt den Stand: grün = alles gesichert, gelb = es gibt neue Änderungen, rot = seit 7 Tagen ungesichert (oder noch nie gesichert).
 - Bei Rot steht zusätzlich ein Hinweis über der Songliste – nur im Vorbereitungsmodus. Auf der Bühne erscheint davon nichts.
