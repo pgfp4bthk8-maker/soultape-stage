@@ -250,6 +250,8 @@ export function restorePrevious() {
 export function importBackup(text) {
   const d = JSON.parse(text);
   if (!d || !Array.isArray(d.songs)) throw new Error('Das ist keine gültige Sicherungsdatei.');
+  // Ein Song-Paket enthält nur einzelne Songs – als Sicherung eingespielt würde es alles andere löschen
+  if (d.type === 'paket') throw new Error('Das ist ein Song-Paket, keine Sicherung. Pakete spielst du unter „Songs teilen“ ein.');
   let kept = true;
   try { localStorage.setItem(PREV, snapshotNow()); } catch (e) { kept = false; }
   state.songs = d.songs;
@@ -260,6 +262,85 @@ export function importBackup(text) {
   save();
   markBackupDone(d.exported);   // die Daten entsprechen jetzt genau der eingespielten Sicherung
   return { kept };
+}
+
+// ---------- Song-Paket: einzelne Songs mit Kollegen austauschen ----------
+// Anders als die Sicherung enthält ein Paket nur ausgewählte Songs, und beim Einspielen wird
+// nichts ersetzt: Neue Songs werden angelegt, bei vorhandenen kommt das Blatt als zusätzliche
+// Fassung dazu. Die aktive Fassung des Empfängers bleibt, wie sie ist.
+
+/**
+ * Packt die gewählten Songs (jeweils mit dem aktiven Blatt).
+ * sounds: Soundvorschläge mitgeben · textOf: Umformung des Blatt-Texts (z. B. Soundwechsel entfernen)
+ */
+export function exportPackage(ids, { sounds = false, from = '', role = '', textOf = (t) => t } = {}) {
+  const songs = ids.map(getSong).filter(Boolean).map((s) => {
+    const sh = activeSheet(s);
+    const o = {
+      title: s.title, artist: s.artist || '', key: s.key || '', transpose: s.transpose || 0,
+      durationSec: s.durationSec || null, aliases: s.aliases || [],
+      sheet: sh ? { name: sh.name, text: textOf(sh.text) } : null,
+    };
+    if (sounds) o.parts = clone(s.parts || []);
+    return o;
+  });
+  return JSON.stringify({ app: 'soultape-stage', type: 'paket', version: 1, from, role, created: new Date().toISOString(), sounds, songs }, null, 2);
+}
+
+/** Liest eine Paket-Datei und schlägt für jeden Song die Zuordnung vor. Wirft bei falschen Dateien. */
+export function readPackage(text) {
+  let d;
+  try { d = JSON.parse(text); } catch (e) { throw new Error('Das ist keine Paket-Datei.'); }
+  if (!d || d.app !== 'soultape-stage' || !Array.isArray(d.songs)) throw new Error('Das ist keine Paket-Datei.');
+  if (d.type !== 'paket') throw new Error('Das ist eine vollständige Sicherung, kein Song-Paket. Sicherungen spielst du unter Einstellungen ein.');
+  const items = d.songs.filter((x) => x && typeof x.title === 'string' && x.title.trim()).map((x) => {
+    const m = matchSong(x.title);
+    return { song: x, target: m ? m.id : 'new', include: true };
+  });
+  if (!items.length) throw new Error('Das Paket enthält keine Songs.');
+  return { from: String(d.from || ''), created: d.created || null, sounds: !!d.sounds, items };
+}
+
+/** Was würde das Einspielen bei diesem Eintrag tun? → { isNew, sheet: 'add'|'dup'|'none', sounds: bool } */
+export function packagePlan(item, withSounds) {
+  const t = item.target === 'new' ? null : getSong(item.target);
+  const text = item.song.sheet && typeof item.song.sheet.text === 'string' ? item.song.sheet.text : '';
+  const sheet = !text.trim() ? 'none' : (t && (t.sheets || []).some((v) => v.text === text) ? 'dup' : 'add');
+  const sounds = !!withSounds && hasSound(item.song) && (!t || !hasSound(t));
+  return { isNew: !t, sheet, sounds };
+}
+
+/** Spielt die angehakten Einträge ein. Überschreibt nichts. */
+export function applyPackage(pkg, { sounds = false } = {}) {
+  const stamp = new Date().toLocaleDateString('de-DE');
+  const name = pkg.from ? `Von ${pkg.from}, ${stamp}` : `Aus Paket, ${stamp}`;
+  let created = 0, added = 0, soundsSet = 0;
+  for (const it of pkg.items) {
+    if (!it.include) continue;
+    const plan = packagePlan(it, sounds);
+    const x = it.song;
+    let s = plan.isNew ? null : getSong(it.target);
+    if (!s) {
+      s = newSong({
+        title: x.title.trim(), artist: x.artist || '', key: x.key || '', transpose: +x.transpose || 0,
+        durationSec: x.durationSec || null, aliases: Array.isArray(x.aliases) ? x.aliases : [],
+      });
+      created++;
+    } else {
+      // nur leere Felder ergänzen
+      if (!s.artist && x.artist) s.artist = x.artist;
+      if (!s.key && x.key) s.key = x.key;
+      if (!s.durationSec && x.durationSec) s.durationSec = x.durationSec;
+    }
+    if (plan.sounds) { s.parts = clone(x.parts); soundsSet++; }
+    if (plan.sheet === 'add') {
+      const v = addSheet(s, name, x.sheet.text, false);
+      if (pkg.from) v.from = pkg.from;
+      added++;
+    }
+  }
+  save();
+  return { created, added, soundsSet };
 }
 
 /** Hat der Song schon einen Soundvorschlag (oder eigene Eintragungen)? */
