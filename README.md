@@ -2,7 +2,7 @@
 
 Bühnen- und Vorbereitungs-App für die Band **SoulTape** – zuerst für das Keyboard (Nord Electro 7 73 HP), später auch für die anderen Bandmitglieder.
 
-**Version:** 0.1.17
+**Version:** 0.1.18
 
 ## Was die App kann
 
