@@ -41,6 +41,7 @@ export function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
     saveOk = true;
+    trackBackup();
   } catch (e) {
     saveOk = false;
   }
@@ -170,6 +171,50 @@ export function matchSong(title) {
   return bestScore >= 0.7 ? best : null;
 }
 
+// ---------- Stand der Sicherung ----------
+// Die App merkt sich, wann zuletzt gesichert wurde und einen Fingerabdruck der gesicherten Daten
+// (Songs + Listen; Einstellungen wie die Schriftgröße zählen nicht). So erkennt sie, ob es seitdem
+// ungesicherte Änderungen gibt. Liegt in einem eigenen Schlüssel, nicht im Backup selbst.
+const META = 'soultape-stage-sicherung';
+export const BACKUP_DUE_DAYS = 7;
+
+function hash(t) {
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+const fingerprint = () => hash(JSON.stringify([state.songs, state.lists]));
+
+let meta = {};
+try { meta = JSON.parse(localStorage.getItem(META)) || {}; } catch (e) { meta = {}; }
+const saveMeta = () => { try { localStorage.setItem(META, JSON.stringify(meta)); } catch (e) { /* egal */ } };
+
+/** Nach jedem Speichern: gibt es Änderungen, die noch in keiner Sicherung stecken – und seit wann? */
+function trackBackup() {
+  const dirty = fingerprint() !== meta.mark;
+  if (!dirty && meta.dirtySince) { meta.dirtySince = null; saveMeta(); }
+  else if (dirty && !meta.dirtySince) { meta.dirtySince = new Date().toISOString(); saveMeta(); }
+}
+
+/** Sicherung wurde gerade exportiert (oder eingespielt): Stand merken. */
+export function markBackupDone() {
+  meta = { at: new Date().toISOString(), mark: fingerprint(), dirtySince: null };
+  saveMeta();
+}
+
+/**
+ * Ampel für die Sicherung.
+ * level: 'ok' (alles gesichert) | 'warn' (neue Änderungen) | 'alert' (seit BACKUP_DUE_DAYS Tagen ungesichert oder noch nie gesichert)
+ */
+export function backupStatus() {
+  const at = meta.at || null;
+  if (at && fingerprint() === meta.mark) return { level: 'ok', at, days: 0 };
+  const days = meta.dirtySince ? Math.floor((Date.now() - new Date(meta.dirtySince).getTime()) / 86400000) : 0;
+  const own = state.lists.length > 0 || state.songs.some((s) => s.sheets && s.sheets.length);
+  if (!at) return { level: own ? 'alert' : 'warn', at, days };
+  return { level: days >= BACKUP_DUE_DAYS ? 'alert' : 'warn', at, days };
+}
+
 // ---------- Backup ----------
 export function exportBackup() {
   return JSON.stringify({ app: 'soultape-stage', exported: new Date().toISOString(), ...state }, null, 2);
@@ -183,6 +228,7 @@ export function importBackup(text) {
   state.settings = { ...state.settings, ...(d.settings || {}) };
   state.seedVersion = d.seedVersion || state.seedVersion;
   save();
+  markBackupDone();   // die Daten entsprechen jetzt genau der eingespielten Sicherung
 }
 
 /** Hat der Song schon einen Soundvorschlag (oder eigene Eintragungen)? */
