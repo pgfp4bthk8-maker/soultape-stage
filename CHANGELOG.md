@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.1.21 – 17.11.2026
+- **Soundvorschläge für 87 weitere Songs** (die Songs aus „Rest.chopro“, z. B. Bohemian Rhapsody, Hold the Line, Piano Man, Jump, Titanium): jeweils eine Kurzbeschreibung und eine Schritt-Anleitung für den Nord. Grundlage sind das Original und deine Notizen aus der Datei (Kawai-Codes, „33C Orgel 70 %“, „Strings linke Hand“, „HiQBass −1 Okt“). Bei *Bed of Roses* (P 15) und *No Roots* (P 21) ist dein vorhandener Speicherplatz eingetragen.
+- Die Vorschläge kommen beim ersten Start still zu den Songs, die noch keinen Sound haben. Eigene Eintragungen bleiben unberührt.
+- Diese Vorschläge werden nur bei Songs eingetragen, die du selbst importiert hast – und nur bei genau passendem Titel. Bei einer Neuinstallation oder über „Startdaten ergänzen“ werden dafür keine eigenen Songs angelegt.
+- Alle Werte sind ungehörte Startpunkte und müssen am Instrument geprüft werden.
+
 ## 0.1.20 – 17.11.2026
 - **Band-Paket** (unter „Songs teilen“): ein Knopf packt die ganze Songliste (Titel, Interpret, Tonart, Dauer, Nummer) und alle Setlisten in eine Datei `soultape-bandpaket-<Datum>.json` – für die ganze Band. Blätter gehen nur mit, wenn sie unten angehakt sind.
 - **Abweichungen beim Einspielen:** Hat der Empfänger bei einem Song einen anderen Titel, Interpreten, eine andere Tonart oder Dauer, zeigt die Vorschau das an („Dauer ändern: bei dir 4:10 → aus dem Paket 3:35“). Standardmäßig wird der Wert aus dem Paket übernommen; jeder Wert lässt sich einzeln abwählen. Leere Felder werden wie bisher ergänzt. Wird ein Titel geändert, bleibt der alte als zweiter Name erhalten, damit ChordPro-Dateien weiter zugeordnet werden. Gilt für alle Pakete.
