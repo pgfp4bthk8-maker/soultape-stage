@@ -300,13 +300,18 @@ export function importBackup(text) {
   try { localStorage.setItem(PREV, snapshotNow()); } catch (e) { kept = false; }
   state.songs = d.songs;
   if (Array.isArray(d.lists)) state.lists = d.lists;   // alte Sicherungen ohne Listen lassen die Listen unberührt
+  // Sicherung einer anderen Person (z. B. die Sicherung des Keyboarders beim Kollegen): eigenes Profil und Nummernvergabe behalten
+  const mine = state.settings.profile, theirs = d.settings && d.settings.profile;
+  const ownProfile = !!(mine && mine.name && theirs && theirs.name && !sameName(mine.name, theirs.name));
+  const numbering = state.settings.numbering;
   state.settings = { ...state.settings, ...(d.settings || {}) };
+  if (ownProfile) { state.settings.profile = mine; state.settings.numbering = numbering; }
   state.seedVersion = d.seedVersion || state.seedVersion;
   state.noMax = Math.max(state.noMax || 0, d.noMax || 0);
   state.settings.navList = null;
   save();
   markBackupDone(d.exported);   // die Daten entsprechen jetzt genau der eingespielten Sicherung
-  return { kept };
+  return { kept, ownProfile };
 }
 
 // ---------- Song-Paket: einzelne Songs mit Kollegen austauschen ----------
@@ -318,7 +323,7 @@ export function importBackup(text) {
  * Packt die gewählten Songs (jeweils mit dem aktiven Blatt).
  * sounds: Soundvorschläge mitgeben · textOf: Umformung des Blatt-Texts (z. B. Soundwechsel entfernen)
  */
-export function exportPackage(ids, { sounds = false, from = '', role = '', textOf = (t) => t, lists = [], made = '' } = {}) {
+export function exportPackage(ids, { sounds = false, from = '', role = '', textOf = (t) => t, lists = [], made = '', bare = [], band = false } = {}) {
   // Setlisten: nur die Reihenfolge. Songs stehen mit Titel und Eckdaten drin (IDs gelten nur auf diesem Gerät),
   // damit der Empfänger sie seinen eigenen Songs zuordnen oder als leere Songs anlegen kann.
   const outLists = lists.map(getList).filter(Boolean).map((l) => ({
@@ -329,8 +334,10 @@ export function exportPackage(ids, { sounds = false, from = '', role = '', textO
       return s ? { type: 'song', uid: songUid(s), no: s.no || null, title: s.title, artist: s.artist || '', key: s.key || '', durationSec: s.durationSec || null } : null;
     }).filter(Boolean),
   }));
-  const songs = ids.map(getSong).filter(Boolean).map((s) => {
-    const sh = activeSheet(s);
+  // bare: Songs, die nur mit ihren Eckdaten mitgehen (Band-Paket: die ganze Songliste); ids: Songs mit Blatt
+  const withSheet = new Set(ids);
+  const songs = [...new Set([...bare, ...ids])].map(getSong).filter(Boolean).map((s) => {
+    const sh = withSheet.has(s.id) ? activeSheet(s) : null;
     const o = {
       uid: songUid(s), no: s.no || null,
       title: s.title, artist: s.artist || '', key: s.key || '', transpose: s.transpose || 0,
@@ -340,7 +347,7 @@ export function exportPackage(ids, { sounds = false, from = '', role = '', textO
     if (sounds) o.parts = clone(s.parts || []);
     return o;
   });
-  return JSON.stringify({ app: 'soultape-stage', type: 'paket', version: 1, made, from, role, created: new Date().toISOString(), sounds, songs, lists: outLists }, null, 2);
+  return JSON.stringify({ app: 'soultape-stage', type: 'paket', version: 1, made, band, from, role, created: new Date().toISOString(), sounds, songs, lists: outLists }, null, 2);
 }
 
 const sameName = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
@@ -356,7 +363,8 @@ export function readPackage(text) {
     const known = songByUid(x.uid);
     const m = known || matchSong(x.title);
     const target = m ? m.id : 'new';
-    return { song: x, target, target0: target, include: true, by: known ? 'uid' : (m ? 'title' : '') };
+    // keep: Felder, bei denen der Empfänger seinen eigenen Wert behalten möchte (Standard: Paket gewinnt)
+    return { song: x, target, target0: target, include: true, by: known ? 'uid' : (m ? 'title' : ''), keep: {} };
   });
   // Setlisten: gibt es beim Empfänger schon eine Liste mit demselben Namen, wird sie als Ziel vorgeschlagen
   const lists = (Array.isArray(d.lists) ? d.lists : [])
@@ -370,7 +378,7 @@ export function readPackage(text) {
       return { list: clean, target: ex ? ex.id : 'new', include: true };
     });
   if (!items.length && !lists.length) throw new Error('Das Paket ist leer.');
-  return { from: String(d.from || ''), created: d.created || null, sounds: !!d.sounds, items, lists };
+  return { from: String(d.from || ''), created: d.created || null, sounds: !!d.sounds, band: !!d.band, items, lists };
 }
 
 /** Ordnet einen Listen-Eintrag aus dem Paket einem Song auf diesem Gerät zu (oder null). */
@@ -422,20 +430,40 @@ function takeIdentity(s, x) {
   if (noPlan(s, x.no) === 'set') s.no = +x.no;
 }
 
-/** Was würde das Einspielen bei diesem Eintrag tun? → { isNew, sheet: 'add'|'dup'|'none', sounds: bool } */
+// Gemeinsame Eckdaten eines Songs. Weicht ein Wert beim Empfänger ab, zeigt die Vorschau das an;
+// standardmäßig wird der Wert aus dem Paket übernommen, der Empfänger kann einzelne abwählen (item.keep).
+export const SHARED_FIELDS = [['title', 'Titel'], ['artist', 'Interpret'], ['key', 'Tonart'], ['durationSec', 'Dauer']];
+const fieldVal = (f, v) => (f === 'durationSec' ? (+v > 0 ? Math.round(+v) : null) : (typeof v === 'string' && v.trim() ? v.trim() : null));
+
+/** Vergleicht die Eckdaten → { fill: [Feld] (bei dir leer), diffs: [{ f, label, mine, theirs }] } */
+function fieldPlan(t, x) {
+  const fill = [], diffs = [];
+  if (!t) return { fill, diffs };
+  for (const [f, label] of SHARED_FIELDS) {
+    const theirs = fieldVal(f, x[f]), mine = fieldVal(f, t[f]);
+    if (theirs === null || theirs === mine) continue;
+    if (mine === null) fill.push(f); else diffs.push({ f, label, mine, theirs });
+  }
+  return { fill, diffs };
+}
+
+/** Was würde das Einspielen bei diesem Eintrag tun? → { isNew, sheet: 'add'|'dup'|'none', sounds, no, fill, diffs, nothing } */
 export function packagePlan(item, withSounds) {
   const t = item.target === 'new' ? null : getSong(item.target);
   const text = item.song.sheet && typeof item.song.sheet.text === 'string' ? item.song.sheet.text : '';
   const sheet = !text.trim() ? 'none' : (t && (t.sheets || []).some((v) => v.text === text) ? 'dup' : 'add');
   const sounds = !!withSounds && hasSound(item.song) && (!t || !hasSound(t));
-  return { isNew: !t, sheet, sounds, no: noPlan(t, item.song.no) };
+  const no = noPlan(t, item.song.no);
+  const { fill, diffs } = fieldPlan(t, item.song);
+  const take = diffs.filter((d) => !(item.keep || {})[d.f]);
+  return { isNew: !t, sheet, sounds, no, fill, diffs, nothing: !!t && sheet !== 'add' && !sounds && no !== 'set' && !fill.length && !take.length };
 }
 
 /** Spielt die angehakten Einträge ein. Überschreibt nichts. */
 export function applyPackage(pkg, { sounds = false } = {}) {
   const stamp = new Date().toLocaleDateString('de-DE');
   const name = pkg.from ? `Von ${pkg.from}, ${stamp}` : `Aus Paket, ${stamp}`;
-  let created = 0, added = 0, soundsSet = 0;
+  let created = 0, added = 0, soundsSet = 0, changed = 0;
   const byTitle = new Map();   // Titel aus dem Paket → Song auf diesem Gerät (für die Setlisten)
   for (const it of pkg.items) {
     if (!it.include) continue;
@@ -449,10 +477,17 @@ export function applyPackage(pkg, { sounds = false } = {}) {
       });
       created++;
     } else {
-      // nur leere Felder ergänzen
-      if (!s.artist && x.artist) s.artist = x.artist;
-      if (!s.key && x.key) s.key = x.key;
-      if (!s.durationSec && x.durationSec) s.durationSec = x.durationSec;
+      // leere Felder ergänzen, abweichende übernehmen – außer der Empfänger behält seinen Wert
+      for (const f of plan.fill) s[f] = fieldVal(f, x[f]);
+      let any = false;
+      for (const d of plan.diffs) {
+        if ((it.keep || {})[d.f]) continue;
+        // alter Titel bleibt als Alias, damit ChordPro-Dateien mit dem alten Namen weiter zugeordnet werden
+        if (d.f === 'title' && !(s.aliases || []).some((a) => sameName(a, d.mine))) s.aliases = [...(s.aliases || []), d.mine];
+        s[d.f] = d.theirs;
+        any = true;
+      }
+      if (any) changed++;
     }
     takeIdentity(s, x);
     if (plan.sounds) { s.parts = clone(x.parts); soundsSet++; }
@@ -496,7 +531,7 @@ export function applyPackage(pkg, { sounds = false } = {}) {
     }
   }
   save();
-  return { created, added, soundsSet, listsNew, listsUpdated };
+  return { created, added, soundsSet, changed, listsNew, listsUpdated };
 }
 
 /** Hat der Song schon einen Soundvorschlag (oder eigene Eintragungen)? */

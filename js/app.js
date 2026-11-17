@@ -3,13 +3,13 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   matchSong, exportBackup, importBackup, refreshSeeds, lastSaveOk,
   getList, newList, deleteList, snapshotList, restoreSnapshot,
   backupStatus, markBackupDone, BACKUP_DUE_DAYS, previousInfo, restorePrevious,
-  exportPackage, readPackage, packagePlan, applyPackage, listPlan,
+  exportPackage, readPackage, packagePlan, applyPackage, listPlan, SHARED_FIELDS,
   songByNo, nextNo, setSongNo, numberAllSongs } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.19';
+export const APP_VERSION = '0.1.20';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -637,6 +637,7 @@ function cmpVer(a, b) {
   for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
   return 0;
 }
+const FIELD_LABEL = Object.fromEntries(SHARED_FIELDS);
 const noSwitches = (text) => text.replace(/\r\n?/g, '\n').split('\n').filter((l) => switchText(l) === null).join('\n');
 
 /** Öffnet eine Paket-Datei (Text) in der Vorschau. Falsche Dateien → Hinweis. */
@@ -664,6 +665,15 @@ function viewShare() {
     <h1>Songs teilen</h1>
     <p class="muted">Einzelne Songs und Setlisten als kleines Paket an einen Kollegen schicken – oder ein Paket von einem Kollegen einspielen.
       Beim Einspielen wird nichts überschrieben: Hat der Empfänger den Song schon, kommt das Blatt als zusätzliche Fassung dazu.</p>
+
+    <h2>Band-Paket</h2>
+    <div class="card stack">
+      <p style="margin:0">Die ganze Songliste (${songs.length} Songs mit Titel, Interpret, Tonart, Dauer${songs.some((s) => s.no) ? ' und Nummer' : ''})
+        und alle ${state.lists.length} Setlisten in einer Datei – für die ganze Band.</p>
+      <p class="small muted" style="margin:0">Die Kollegen sehen beim Einspielen, was sich bei ihnen ändert, und können einzelne Werte behalten.
+        Blätter gehen nur mit, wenn du sie unten anhakst: <b id="shBandSheets"></b>.</p>
+      <div class="row"><button class="btn primary" id="shBand">Band-Paket erstellen</button></div>
+    </div>
 
     <h2>Paket erstellen</h2>
     <div class="card stack">
@@ -697,6 +707,7 @@ function viewShare() {
   const count = () => {
     const n = sh.sel.size, k = sh.lists.size;
     $('#shCount').textContent = `${n} ${n === 1 ? 'Blatt' : 'Blätter'}${k ? ` und ${k} ${k === 1 ? 'Setlist' : 'Setlisten'}` : ''} ausgewählt`;
+    $('#shBandSheets').textContent = n ? `${n} ${n === 1 ? 'Blatt' : 'Blätter'} angehakt` : 'keine angehakt';
   };
   count();
   app.querySelectorAll('[data-pick]').forEach((c) => c.onchange = () => { if (c.checked) sh.sel.add(c.dataset.pick); else sh.sel.delete(c.dataset.pick); count(); });
@@ -718,6 +729,14 @@ function viewShare() {
     download(`soultape-paket-${day}.json`, exportPackage(list.map((s) => s.id),
       { sounds, from: profile().name, role: profile().role, textOf: sounds ? (t) => t : noSwitches, lists: [...sh.lists], made: APP_VERSION }), 'application/json');
     toast('Paket erstellt');
+  };
+  $('#shBand').onclick = () => {
+    if (!songs.length) { toast('Noch keine Songs vorhanden'); return; }
+    const sounds = sh.sounds && shows('nord');
+    download(`soultape-bandpaket-${day}.json`, exportPackage(picked().map((s) => s.id),
+      { sounds, from: profile().name, role: profile().role, textOf: sounds ? (t) => t : noSwitches, lists: state.lists.map((l) => l.id),
+        bare: songs.map((s) => s.id), band: true, made: APP_VERSION }), 'application/json');
+    toast('Band-Paket erstellt');
   };
   $('#shCho').onclick = () => {
     const list = picked().filter(activeSheet);
@@ -745,11 +764,32 @@ function viewPackage() {
     if (p.no === 'differs') out.push(`<span class="badge warn">Hat bei dir eine andere Nummer (Paket: ${+it.song.no}) – deine bleibt</span>`);
     if (p.sheet === 'add') out.push(`<span class="badge ok">${p.isNew ? 'mit Blatt' : 'Blatt kommt als zusätzliche Fassung dazu'}</span>`);
     if (p.sheet === 'dup') out.push('<span class="badge">Dieses Blatt hast du schon</span>');
-    if (p.sheet === 'none') out.push('<span class="badge">Kein Blatt im Paket</span>');
+    if (p.sheet === 'none' && !pkg.band) out.push('<span class="badge">Kein Blatt im Paket</span>');
     if (p.sounds) out.push('<span class="badge ok">Sounds werden übernommen</span>');
-    if (!p.isNew && p.sheet !== 'add' && !p.sounds && p.no !== 'set') out.push('<span class="badge warn">Nichts zu tun</span>');
+    if (p.fill.length) out.push(`<span class="badge ok">ergänzt: ${p.fill.map((f) => FIELD_LABEL[f]).join(', ')}</span>`);
+    if (p.nothing) out.push('<span class="badge warn">Nichts zu tun</span>');
     return out.join('');
   };
+  const shown = (f, v) => esc(f === 'durationSec' ? fmtDur(v) : v);
+  const diffRows = (it, i, p) => p.diffs.map((d) => `
+    <label class="row small" style="flex-wrap:nowrap"><input type="checkbox" data-diff="${i}" data-f="${d.f}" ${it.keep[d.f] ? '' : 'checked'} style="width:20px;height:20px;flex:none">
+      <span><b>${d.label}</b> ändern: bei dir „${shown(d.f, d.mine)}“ → aus dem Paket „${shown(d.f, d.theirs)}“${it.keep[d.f] ? ' <span class="muted">(deiner bleibt)</span>' : ''}</span></label>`).join('');
+  // Sicher erkannte Songs ohne Änderung werden zusammengefasst, damit ein Band-Paket mit vielen Songs übersichtlich bleibt
+  const plans = pkg.items.map((it) => packagePlan(it, ui.pkgSounds));
+  const quiet = (it, i) => it.include && plans[i].nothing && !plans[i].diffs.length && it.by === 'uid' && it.target === it.target0;
+  const card = (it, i) => `
+      <div class="card stack">
+        <label class="row"><input type="checkbox" data-inc="${i}" ${it.include ? 'checked' : ''} style="width:22px;height:22px">
+          <b style="font-size:18px">${esc(it.song.title)}</b>${+it.song.no ? `<span class="sno" style="margin-left:8px">${+it.song.no}</span>` : ''} <span class="muted">${esc(it.song.artist || '')}</span></label>
+        <div class="row small">${planText(it)}</div>
+        ${it.include ? diffRows(it, i, plans[i]) : ''}
+        <label class="f"><span>Zuordnen zu</span><select data-target="${i}">${opts(it.target)}</select></label>
+      </div>`;
+  const quietOnes = pkg.items.map((it, i) => (quiet(it, i) ? it : null)).filter(Boolean);
+  const nNew = plans.filter((p, i) => pkg.items[i].include && p.isNew).length;
+  const nCheck = pkg.items.filter((it, i) => it.include && !plans[i].isNew && it.by === 'title' && it.target === it.target0).length;
+  const nDiff = plans.filter((p, i) => pkg.items[i].include && p.diffs.length).length;
+  const nSheets = pkg.items.filter((it) => it.song.sheet && it.song.sheet.text).length;
   const listPlanText = (pl) => {
     const p = listPlan(pkg, pl);
     const out = [`<span class="badge">${p.songs} Songs${p.breaks ? `, ${p.breaks} ${p.breaks === 1 ? 'Pause' : 'Pausen'}` : ''}</span>`];
@@ -761,11 +801,12 @@ function viewPackage() {
   };
   shell('songs', `
     <div class="row"><a class="btn ghost" href="#/">◀ Songs</a></div>
-    <h1>Paket einspielen</h1>
-    <p class="muted">Paket${pkg.from ? ` von <b>${esc(pkg.from)}</b>` : ''}${pkg.created ? ` vom ${fmtDate(pkg.created)}` : ''} mit ${[
+    <h1>${pkg.band ? 'Band-Paket' : 'Paket'} einspielen</h1>
+    <p class="muted">${pkg.band ? 'Band-Paket' : 'Paket'}${pkg.from ? ` von <b>${esc(pkg.from)}</b>` : ''}${pkg.created ? ` vom ${fmtDate(pkg.created)}` : ''} mit ${[
+      pkg.items.length ? `${pkg.items.length} ${pkg.items.length === 1 ? 'Song' : 'Songs'}` : '',
       pkg.lists.length ? `${pkg.lists.length} ${pkg.lists.length === 1 ? 'Setlist' : 'Setlisten'}` : '',
-      pkg.items.length ? `${pkg.items.length} ${pkg.items.length === 1 ? 'Blatt' : 'Blättern'}` : ''].filter(Boolean).join(' und ')}.
-      Es wird nichts überschrieben – deine eigenen Blätter bleiben und bleiben aktiv.</p>
+      nSheets ? `${nSheets} ${nSheets === 1 ? 'Blatt' : 'Blättern'}` : ''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' und $1')}.
+      Deine eigenen Blätter bleiben und bleiben aktiv. Weichen Titel, Interpret, Tonart oder Dauer ab, siehst du das unten und kannst deinen Wert behalten.</p>
     ${pkg.newer ? `<div class="notice"><b>Das Paket wurde mit einer neueren Version erstellt</b> (${esc(pkg.newer)}, auf diesem Gerät läuft ${APP_VERSION}). Möglicherweise fehlt hier etwas. Am besten zuerst die App aktualisieren: mit WLAN öffnen, schließen, wieder öffnen – dann das Paket noch einmal einspielen.</div>` : ''}
     ${pkg.lists.length ? `<h2>Setlisten</h2><div class="stack">${pkg.lists.map((pl, i) => `
       <div class="card stack">
@@ -776,20 +817,22 @@ function viewPackage() {
           <option value="new" ${pl.target === 'new' ? 'selected' : ''}>➕ Neue Liste anlegen</option>
           ${state.lists.map((l) => `<option value="${l.id}" ${l.id === pl.target ? 'selected' : ''}>Vorhandene Liste aktualisieren: ${esc(l.name)}</option>`).join('')}</select></label>
       </div>`).join('')}</div>` : ''}
-    ${pkg.items.length && pkg.lists.length ? '<h2>Blätter</h2>' : ''}
+    ${pkg.items.length && pkg.lists.length ? '<h2>Songs</h2>' : ''}
+    ${pkg.items.length > 1 ? `<div class="row small">
+      ${nNew ? `<span class="badge ok">${nNew} neu</span>` : ''}
+      ${nCheck ? `<span class="badge warn">${nCheck} über den Titel zugeordnet – bitte prüfen</span>` : ''}
+      ${nDiff ? `<span class="badge warn">${nDiff} mit abweichenden Angaben</span>` : ''}
+      ${quietOnes.length ? `<span class="badge">${quietOnes.length} unverändert</span>` : ''}</div>` : ''}
     ${pkg.sounds ? `<label class="row card" style="flex-wrap:nowrap"><input type="checkbox" id="pkSounds" ${ui.pkgSounds ? 'checked' : ''} style="width:22px;height:22px;flex:none">
       <span>Sounds aus dem Paket übernehmen <span class="muted small">(nur bei Songs, die bei dir noch keinen Sound haben)</span></span></label>` : ''}
-    <div class="stack">${pkg.items.map((it, i) => `
-      <div class="card stack">
-        <label class="row"><input type="checkbox" data-inc="${i}" ${it.include ? 'checked' : ''} style="width:22px;height:22px">
-          <b style="font-size:18px">${esc(it.song.title)}</b>${+it.song.no ? `<span class="sno" style="margin-left:8px">${+it.song.no}</span>` : ''} <span class="muted">${esc(it.song.artist || '')}</span></label>
-        <div class="row small">${planText(it)}</div>
-        <label class="f"><span>Zuordnen zu</span><select data-target="${i}">${opts(it.target)}</select></label>
-      </div>`).join('')}
+    <div class="stack">${pkg.items.map((it, i) => (quiet(it, i) ? '' : card(it, i))).join('')}
+      ${quietOnes.length ? `<details class="card"><summary>${quietOnes.length} ${quietOnes.length === 1 ? 'Song' : 'Songs'} sicher erkannt, nichts zu tun</summary>
+        <p class="small muted">${quietOnes.map((it) => esc(it.song.title)).join(' · ')}</p></details>` : ''}
       <div class="row"><button class="btn primary" id="pkDo">Einspielen</button><button class="btn ghost" id="pkCancel">Abbrechen</button></div>
     </div>`);
   app.querySelectorAll('[data-inc]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.inc].include = c.checked; keepY(viewPackage); });
   app.querySelectorAll('[data-target]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.target].target = c.value; keepY(viewPackage); });
+  app.querySelectorAll('[data-diff]').forEach((c) => c.onchange = () => { pkg.items[+c.dataset.diff].keep[c.dataset.f] = !c.checked; keepY(viewPackage); });
   app.querySelectorAll('[data-linc]').forEach((c) => c.onchange = () => { pkg.lists[+c.dataset.linc].include = c.checked; });
   app.querySelectorAll('[data-ltarget]').forEach((c) => c.onchange = () => { pkg.lists[+c.dataset.ltarget].target = c.value; keepY(viewPackage); });
   const ps = $('#pkSounds'); if (ps) ps.onchange = () => { ui.pkgSounds = ps.checked; keepY(viewPackage); };
@@ -803,6 +846,7 @@ function viewPackage() {
       if (r.listsNew) parts.push(`${r.listsNew} ${r.listsNew === 1 ? 'Liste' : 'Listen'} angelegt`);
       if (r.listsUpdated) parts.push(`${r.listsUpdated} ${r.listsUpdated === 1 ? 'Liste' : 'Listen'} aktualisiert`);
       if (r.created) parts.push(`${r.created} ${r.created === 1 ? 'Song' : 'Songs'} neu angelegt`);
+      if (r.changed) parts.push(`${r.changed} ${r.changed === 1 ? 'Song' : 'Songs'} angepasst`);
       if (r.added) parts.push(`${r.added} ${r.added === 1 ? 'Blatt' : 'Blätter'} dazugekommen`);
       if (r.soundsSet) parts.push(`${r.soundsSet}× Sounds übernommen`);
       toast(parts.join(', ') || 'Nichts zu tun – alles war schon vorhanden');
@@ -1171,7 +1215,9 @@ function viewSettings() {
     if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt. Der jetzige Stand wird beiseitegelegt und lässt sich hier zurückholen.')) return;
     try {
       const r = importBackup(await f.text());
-      toast(!lastSaveOk() ? 'Speichern fehlgeschlagen – Speicher voll?' : r.kept ? 'Backup importiert – bisheriger Stand beiseitegelegt' : 'Backup importiert (bisheriger Stand konnte nicht beiseitegelegt werden)');
+      toast(!lastSaveOk() ? 'Speichern fehlgeschlagen – Speicher voll?'
+        : (r.kept ? 'Backup importiert – bisheriger Stand beiseitegelegt' : 'Backup importiert (bisheriger Stand konnte nicht beiseitegelegt werden)')
+          + (r.ownProfile ? '. Die Sicherung stammt von jemand anderem – dein Profil bleibt.' : ''), r.ownProfile ? 6000 : 2200);
       route();
     } catch (err) { toast(err.message || 'Import fehlgeschlagen'); }
   };
