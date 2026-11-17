@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.1.20 – 17.11.2026
+- **Band-Paket** (unter „Songs teilen“): ein Knopf packt die ganze Songliste (Titel, Interpret, Tonart, Dauer, Nummer) und alle Setlisten in eine Datei `soultape-bandpaket-<Datum>.json` – für die ganze Band. Blätter gehen nur mit, wenn sie unten angehakt sind.
+- **Abweichungen beim Einspielen:** Hat der Empfänger bei einem Song einen anderen Titel, Interpreten, eine andere Tonart oder Dauer, zeigt die Vorschau das an („Dauer ändern: bei dir 4:10 → aus dem Paket 3:35“). Standardmäßig wird der Wert aus dem Paket übernommen; jeder Wert lässt sich einzeln abwählen. Leere Felder werden wie bisher ergänzt. Wird ein Titel geändert, bleibt der alte als zweiter Name erhalten, damit ChordPro-Dateien weiter zugeordnet werden. Gilt für alle Pakete.
+- Übersichtlichere Vorschau: Oben steht, wie viele Songs neu sind, geprüft werden sollten oder abweichen. Sicher erkannte Songs ohne Änderung sind zu einer Zeile zusammengefasst.
+- **Sicherung einer anderen Person:** Spielt jemand eine fremde Sicherung ein (anderer Profilname), bleiben sein eigenes Profil und seine Einstellung zur Nummernvergabe erhalten.
+
 ## 0.1.19 – 15.11.2026
 - **Update mit einmal Öffnen:** Ist kurz nach dem Start eine neue Version fertig geladen, lädt sich die App einmal selbst neu – die Versionsnummer oben rechts springt dann nach wenigen Sekunden um. Bisher musste man die App dafür schließen und noch einmal öffnen.
 - Das passiert nur im Vorbereitungsmodus, nur in den ersten 30 Sekunden nach dem Start, nur auf den Übersichtsseiten (Songs, Setlisten, Lexikon, Einstellungen) und nicht während einer Eingabe. Im Bühnenmodus und in einem geöffneten Song lädt nie etwas neu – dort gilt weiter: neue Version beim nächsten Start.
