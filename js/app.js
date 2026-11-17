@@ -9,7 +9,7 @@ import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
 
-export const APP_VERSION = '0.1.20';
+export const APP_VERSION = '0.1.21';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');

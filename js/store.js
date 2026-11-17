@@ -13,7 +13,7 @@ function fresh() {
   return {
     schema: SCHEMA,
     seedVersion: SEED_VERSION,
-    songs: clone(SEED_SONGS),
+    songs: clone(SEED_SONGS.filter((s) => !s.fillOnly)),   // fillOnly: nur Vorschläge für selbst importierte Songs
     lists: [],
     settings: { notation: 'de', fontSize: 22, mode: 'prep' },
   };
@@ -570,7 +570,8 @@ function findForSeed(seed) {
       }
     }
   }
-  return bestScore >= 0.8 ? best : null;
+  // fillOnly-Vorschläge nur bei genau passendem Titel (oder Alias) – sonst landet ein Sound beim falschen Song
+  return bestScore >= (seed.fillOnly ? 1 : 0.8) ? best : null;
 }
 
 /**
@@ -585,7 +586,7 @@ export function refreshSeeds({ overwriteSounds = false, addMissing = true } = {}
   for (const seed of SEED_SONGS) {
     const s = findForSeed(seed);
     if (!s) {
-      if (addMissing) { const n = clone(seed); n.seedMark = mark(n.parts); state.songs.push(n); added++; }
+      if (addMissing && !seed.fillOnly) { const n = clone(seed); delete n.fillOnly; n.seedMark = mark(n.parts); state.songs.push(n); added++; }
       continue;
     }
     if (overwriteSounds) { setParts(s, seed); updated++; }
