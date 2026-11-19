@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.24 – 19.11.2026
+- **Sicherung zwischen eigenen Geräten** (z. B. vom Handy aufs iPad): Einstellungen, die zum Gerät gehören, bleiben jetzt beim Einspielen erhalten: Ansicht (Handy/Tablet), Schriftgröße, Blätter-Tempo, Metronom und „Songnummern vergeben“. Bisher hat eine Sicherung vom Handy diese Werte aufs iPad übertragen – im schlimmsten Fall vergab das iPad danach keine Songnummern mehr.
+- Songs, Setlisten und die übrigen Einstellungen (Profil, Anzeigen, H/B-Schreibweise, Nord-Lautstärke) kommen wie bisher aus der Sicherung.
+- Auf einem neuen Gerät „Songnummern vergeben“ bei Bedarf selbst einschalten – das kommt nicht mehr aus der Sicherung mit.
+
 ## 0.1.23 – 19.11.2026
 - **Handy-Ansicht** (Wunsch aus der Bandprobe, vor allem für die Sänger mit dem Handy hochkant am Mikrofonständer): Auf iPhone und Android erscheint automatisch eine angepasste Ansicht. Die Kopfleiste ist schmal („⚙“ statt „Einstellungen“, „Vorb.“ statt „Vorbereitung“), nichts läuft mehr seitlich aus dem Bild – bisher war der Knopf Bühne/Vorbereitung auf dem Handy abgeschnitten.
 - **Nächster Song immer oben:** In der mitlaufenden Leiste steht auf dem Handy ein großer Knopf mit dem nächsten Song der Setliste (mit ⏸, wenn davor eine Pause kommt). Man muss nicht mehr bis ans Ende des Blatts scrollen.
