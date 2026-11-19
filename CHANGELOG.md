@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.1.23 – 19.11.2026
+- **Handy-Ansicht** (Wunsch aus der Bandprobe, vor allem für die Sänger mit dem Handy hochkant am Mikrofonständer): Auf iPhone und Android erscheint automatisch eine angepasste Ansicht. Die Kopfleiste ist schmal („⚙“ statt „Einstellungen“, „Vorb.“ statt „Vorbereitung“), nichts läuft mehr seitlich aus dem Bild – bisher war der Knopf Bühne/Vorbereitung auf dem Handy abgeschnitten.
+- **Nächster Song immer oben:** In der mitlaufenden Leiste steht auf dem Handy ein großer Knopf mit dem nächsten Song der Setliste (mit ⏸, wenn davor eine Pause kommt). Man muss nicht mehr bis ans Ende des Blatts scrollen.
+- Ohne Akkorde (Rolle Gesang) fällt das Transponieren in der Leiste weg; es bleiben Schriftgröße A−/A+ und der nächste Song. „Im Blatt ändern“ ist auf dem Handy nur noch ✎.
+- **Dichterer Text mit Akkorden:** Bricht eine Zeile um, bleibt über dem umgebrochenen Teil keine leere Akkordzeile mehr stehen (gilt auf allen Geräten).
+- Setlisten auf dem Handy: lange Titel brechen um statt „A…“, sortiert wird über den Griff ≡ (▲/▼ fallen dort weg).
+- **Umschalten von Hand:** Einstellungen → Darstellung → Ansicht: Automatisch / Handy / Tablet. Automatisch heißt: Gerät mit kleinem Bildschirm (kürzere Seite unter 600 Pixel) oder schmales Fenster.
+
 ## 0.1.22 – 19.11.2026
 - **Visuelles Metronom** (Wunsch des Schlagzeugers aus der Bandprobe): Ein Ball pendelt im Songtempo von links nach rechts und zurück, jede Umkehr ist ein Schlag. Auf dem Schlag leuchten der Ball und das Ende der Leiste auf.
 - Die Leiste ist schmal und verdeckt keinen Text: entweder **oben** als letzte Zeile unter den Knöpfen (läuft beim Scrollen mit nach oben und bleibt dort stehen) oder **fest unten** am Bildschirm. Einstellbar unter Einstellungen → Metronom.

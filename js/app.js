@@ -10,7 +10,7 @@ import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.22';
+export const APP_VERSION = '0.1.23';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -92,6 +92,45 @@ function backupText(b) {
   return `Ungesicherte Änderungen ${b.days <= 0 ? 'von heute' : dayText(b.days)} – letzte Sicherung ${fmtDate(b.at)}`;
 }
 
+// ---------- Handy-Ansicht ----------
+// settings.layout: 'auto' (Standard) = schmaler Bildschirm hochkant → Handy-Ansicht; 'phone' / 'tablet' = von Hand gewählt.
+const LAYOUTS = { auto: 'Automatisch', phone: 'Handy', tablet: 'Tablet' };
+const PHONE_MAX = 600;   // bis zu dieser Breite (CSS-Pixel) gilt ein Bildschirm als Handy
+const isPhone = () => {
+  const l = state.settings.layout || 'auto';
+  if (l !== 'auto') return l === 'phone';
+  // Kürzere Bildschirmseite: Handys ca. 360–430, Tablets ab ca. 740 – unabhängig davon, ob gerade quer gehalten.
+  // Dazu ein schmales Fenster (z. B. am PC). innerWidth allein reicht nicht: Ist eine Seite zu breit, wächst sie mit.
+  const s = window.screen ? Math.min(screen.width || 9999, screen.height || 9999) : 9999;
+  return s < PHONE_MAX || window.innerWidth < PHONE_MAX;
+};
+function applyLayout() {
+  document.body.classList.toggle('phone', isPhone());
+  // Höhe der Kopfleiste merken, damit die mitlaufende Notenleiste genau darunter stehen bleibt
+  const h = document.querySelector('header.top');
+  if (h) document.documentElement.style.setProperty('--headh', h.offsetHeight + 'px');
+}
+/**
+ * Bricht eine Akkordzeile um, steht über jedem Teil eine Akkordzeile – auch wenn dort gar kein Akkord ist.
+ * Diese leeren Akkordzeilen werden ausgeblendet (Klasse nc), damit der Text auf schmalen Bildschirmen dicht bleibt.
+ * Erst alle Positionen lesen, dann schreiben: ein einziger Layout-Durchgang.
+ */
+function tidyChordRows() {
+  const sh = document.getElementById('sheet');
+  if (!sh) return;
+  const pairs = [...sh.querySelectorAll('.ln.pair')];
+  sh.querySelectorAll('.nc').forEach((e) => e.classList.remove('nc'));
+  const plan = pairs.map((p) => {
+    const rows = new Map();
+    for (const k of p.children) { const t = k.offsetTop; if (!rows.has(t)) rows.set(t, []); rows.get(t).push(k); }
+    return [...rows.values()].filter((r) => !r.some((k) => k.querySelector('.ch')));
+  });
+  plan.forEach((rows) => rows.forEach((r) => r.forEach((k) => k.classList.add('nc'))));
+}
+// Drehen oder Fenstergröße ändern: nur die Ansicht umschalten, nichts neu zeichnen (Bühne: Scroll-Position bleibt)
+let tidyT = 0;
+window.addEventListener('resize', () => { applyLayout(); clearTimeout(tidyT); tidyT = setTimeout(tidyChordRows, 150); });
+
 // ---------- Rahmen ----------
 function shell(active, body) {
   const bk = backupStatus();
@@ -100,18 +139,19 @@ function shell(active, body) {
   document.documentElement.style.setProperty('--font', (state.settings.fontSize || 22) + 'px');
   app.innerHTML = `
     <header class="top">
-      <a class="brand" href="#/"><i></i>SoulTape Stage</a>
+      <a class="brand" href="#/"><i></i><span class="lbl-long">SoulTape Stage</span></a>
       <nav>
         <a href="#/" class="${active === 'songs' ? 'on' : ''}">Songs</a>
         <a href="#/listen" class="${active === 'lists' ? 'on' : ''}">Setlisten</a>
         <a href="#/lexikon" class="${active === 'lex' ? 'on' : ''} prep-only nord-only">Lexikon</a>
-        <a href="#/einstellungen" class="${active === 'set' ? 'on' : ''} prep-only">Einstellungen<i class="bk bk-${bk.level}" title="${esc(backupText(bk))}"></i></a>
+        <a href="#/einstellungen" class="${active === 'set' ? 'on' : ''} prep-only" title="Einstellungen"><span class="lbl-long">Einstellungen</span><span class="lbl-short">⚙</span><i class="bk bk-${bk.level}" title="${esc(backupText(bk))}"></i></a>
       </nav>
       <span class="spacer"></span>
       <span class="ver" title="Version der App">v${APP_VERSION}</span>
-      <button class="mode ${isStage() ? 'stage' : ''}" id="modeBtn">${isStage() ? 'Bühne' : 'Vorbereitung'}</button>
+      <button class="mode ${isStage() ? 'stage' : ''}" id="modeBtn">${isStage() ? 'Bühne' : '<span class="lbl-long">Vorbereitung</span><span class="lbl-short">Vorb.</span>'}</button>
     </header>
     <main>${body}</main>`;
+  applyLayout();
   $('#modeBtn').onclick = () => {
     state.settings.mode = isStage() ? 'prep' : 'stage';
     persist(); route();
@@ -191,14 +231,15 @@ function viewSong(id) {
       ${ui.guide && part?.steps?.length ? guideHtml(part) : ''}` : ''}
     </div>
 
-    <div class="sheetbar">
-      <div class="grp" title="Transponieren"><button id="trDown">−</button><span>${tr === 0 ? 'Original' : (tr > 0 ? '+' : '') + tr}<br><b style="color:var(--chord)">${esc(transposeKey(s.key, tr, notation()) || '–')}</b></span><button id="trUp">+</button></div>
+    <div class="sheetbar${shows('chords') ? '' : ' nochords'}">
+      <div class="grp trgrp" title="Transponieren"><button id="trDown">−</button><span>${tr === 0 ? 'Original' : (tr > 0 ? '+' : '') + tr}<br><b style="color:var(--chord)">${esc(transposeKey(s.key, tr, notation()) || '–')}</b></span><button id="trUp">+</button></div>
       <div class="grp" title="Schriftgröße"><button id="fsDown">A−</button><button id="fsUp">A+</button></div>
-      ${sheet ? `<button class="btn prep-only ${ui.mark ? 'primary' : ''}" id="markBtn">${ui.mark ? 'Fertig' : '✎ Im Blatt ändern'}</button>` : ''}
+      ${sheet ? `<button class="btn prep-only ${ui.mark ? 'primary' : ''}" id="markBtn" title="Im Blatt ändern">${ui.mark ? 'Fertig' : '✎<span class="lbl-long"> Im Blatt ändern</span>'}</button>` : ''}
       ${shows('metro') ? (s.bpm ? `<button class="btn metrobtn ${metroOn(s) ? 'primary' : ''}" id="metroBtn" title="Metronom ein/aus">♩ ${s.bpm}</button>`
         : `<a class="btn ghost prep-only" href="#/bearbeiten/${s.id}" title="Für das Metronom fehlt das Tempo">♩ Tempo fehlt</a>`) : ''}
       <span class="spacer" style="flex:1"></span>
-      ${sheet ? `<span class="badge prep-only">${esc(sheet.name)}</span>` : ''}
+      ${sheet ? `<span class="badge prep-only sheetname">${esc(sheet.name)}</span>` : ''}
+      ${next ? `<a class="btn nextbtn phone-only" href="#/song/${next.id}"${navPos(next)} title="Nächster Song">${ctx && ctx.breakBefore ? '⏸ ' : ''}<span class="nt">${esc(next.title)}</span> ▶</a>` : ''}
       ${metroOn(s) && !metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent }) : ''}
     </div>
     ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
@@ -216,7 +257,7 @@ function viewSong(id) {
   else stopMetro();
   const mtb = $('#metroBtn');
   if (mtb) mtb.onclick = () => { state.settings.metro = { ...metroCfg(), off: !metroCfg().off }; persist(); viewSongKeepScroll(id); };
-  app.querySelectorAll('.songnav a[data-pos]').forEach((a) => a.addEventListener('click', () => { state.settings.navList = { id: ctx.list.id, pos: +a.dataset.pos }; persist(); }));
+  app.querySelectorAll('.songnav a[data-pos], .nextbtn[data-pos]').forEach((a) => a.addEventListener('click', () => { state.settings.navList = { id: ctx.list.id, pos: +a.dataset.pos }; persist(); }));
 
   keepAwake(true);
   window.scrollTo(0, 0);
@@ -230,8 +271,9 @@ function viewSong(id) {
 
   $('#trDown').onclick = () => { s.transpose = tr - 1; persist(); viewSongKeepScroll(id); };
   $('#trUp').onclick = () => { s.transpose = tr + 1; persist(); viewSongKeepScroll(id); };
-  $('#fsDown').onclick = () => { state.settings.fontSize = Math.max(14, (state.settings.fontSize || 22) - 2); persist(); document.documentElement.style.setProperty('--font', state.settings.fontSize + 'px'); };
-  $('#fsUp').onclick = () => { state.settings.fontSize = Math.min(48, (state.settings.fontSize || 22) + 2); persist(); document.documentElement.style.setProperty('--font', state.settings.fontSize + 'px'); };
+  $('#fsDown').onclick = () => { state.settings.fontSize = Math.max(14, (state.settings.fontSize || 22) - 2); persist(); document.documentElement.style.setProperty('--font', state.settings.fontSize + 'px'); tidyChordRows(); };
+  $('#fsUp').onclick = () => { state.settings.fontSize = Math.min(48, (state.settings.fontSize || 22) + 2); persist(); document.documentElement.style.setProperty('--font', state.settings.fontSize + 'px'); tidyChordRows(); };
+  tidyChordRows();
 
   // Tippen rechts = weiter, links = zurück (sanft, um ca. zwei Drittel des Bildschirms)
   const sh = $('#sheet');
@@ -1160,6 +1202,9 @@ function viewSettings() {
       <div><b>Akkord-Schreibweise</b><div class="row" style="margin-top:6px">
         <span class="chip ${st.notation === 'de' ? 'on' : ''}" data-not="de">Deutsch (H, B = Bb)</span>
         <span class="chip ${st.notation === 'en' ? 'on' : ''}" data-not="en">Englisch (B, Bb)</span></div></div>
+      <div><b>Ansicht</b> <span class="muted small">(Handy: schmale Leisten, großer Text, nächster Song immer oben erreichbar)</span><div class="row" style="margin-top:6px">
+        ${Object.entries(LAYOUTS).map(([k, name]) => `<span class="chip ${(st.layout || 'auto') === k ? 'on' : ''}" data-layout="${k}">${name}</span>`).join('')}</div>
+        <div class="small muted" style="margin-top:4px">Automatisch: Auf einem Handy hochkant erscheint die Handy-Ansicht, auf Tablet und PC die volle Ansicht. Gerade aktiv: ${isPhone() ? 'Handy' : 'Tablet'}.</div></div>
       <div><b>Blättern beim Tippen</b> <span class="muted small">(wie schnell das Leadsheet weiterläuft)</span><div class="row" style="margin-top:6px">
         ${Object.entries(PAGE_SPEEDS).map(([ms, name]) => `<span class="chip ${(st.pageMs || 1400) === +ms ? 'on' : ''}" data-page="${ms}">${name}</span>`).join('')}</div></div>
       <div><b>Schriftgröße Leadsheet:</b> ${st.fontSize}px <span class="muted small">(in der Song-Ansicht mit A−/A+ änderbar)</span></div>
@@ -1235,6 +1280,7 @@ function viewSettings() {
   });
   app.querySelectorAll('[data-not]').forEach((c) => c.onclick = () => { st.notation = c.dataset.not; persist(); viewSettings(); });
   app.querySelectorAll('[data-page]').forEach((c) => c.onclick = () => { st.pageMs = +c.dataset.page; persist(); viewSettings(); });
+  app.querySelectorAll('[data-layout]').forEach((c) => c.onclick = () => { st.layout = c.dataset.layout; persist(); keepY(viewSettings); });
   app.querySelectorAll('[data-metro]').forEach((c) => c.onclick = () => { const k = c.dataset.metro; st.metro = { ...metroCfg(), [k]: !metroCfg()[k] }; persist(); keepY(viewSettings); });
   app.querySelectorAll('[data-mpos]').forEach((c) => c.onclick = () => { st.metro = { ...metroCfg(), bottom: c.dataset.mpos === 'bottom' }; persist(); keepY(viewSettings); });
   $('#numAll').onclick = () => {
