@@ -177,15 +177,30 @@ export function splitSongs(text) {
   return chunks.map((raw) => ({ raw, meta: readMeta(raw) }));
 }
 
-/** Liest Titel, Interpret, Tonart und alte Kawai-Codes aus einem Songtext. */
+/** Tempo in Schlägen pro Minute (30–300) aus Text wie „120“, „120 BPM“ oder „96.5“; sonst null. */
+export function readBpm(v) {
+  const m = /(\d{2,3}(?:[.,]\d+)?)/.exec(String(v ?? ''));
+  const n = m ? Math.round(parseFloat(m[1].replace(',', '.'))) : 0;
+  return n >= 30 && n <= 300 ? n : null;
+}
+/** Schläge pro Takt (1–16) aus einer Taktart wie „3/4“, „6/8“ oder „4“; sonst null. */
+export function readBeats(v) {
+  const m = /^\s*(\d{1,2})\s*(?:\/\s*\d{1,2})?\s*$/.exec(String(v ?? ''));
+  const n = m ? +m[1] : 0;
+  return n >= 1 && n <= 16 ? n : null;
+}
+
+/** Liest Titel, Interpret, Tonart, Tempo, Taktart und alte Kawai-Codes aus einem Songtext. */
 export function readMeta(raw) {
-  const meta = { title: '', artist: '', key: '', kawai: [] };
+  const meta = { title: '', artist: '', key: '', kawai: [], bpm: null, beats: null };
   for (const line of raw.split('\n')) {
     const d = directive(line);
     if (d) {
       if (['title', 't'].includes(d.name)) meta.title = d.value;
       else if (['subtitle', 'st', 'artist'].includes(d.name)) meta.artist = meta.artist || d.value;
       else if (d.name === 'key') meta.key = d.value;
+      else if (d.name === 'tempo') meta.bpm = meta.bpm || readBpm(d.value);
+      else if (d.name === 'time') meta.beats = meta.beats || readBeats(d.value);
       continue;
     }
     const s = line.trim();

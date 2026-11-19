@@ -7,9 +7,10 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   songByNo, nextNo, setSongNo, numberAllSongs } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
-import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText } from './chordpro.js';
+import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
+import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.21';
+export const APP_VERSION = '0.1.22';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -45,20 +46,29 @@ const isStage = () => state.settings.mode === 'stage';
 // ---------- Profil: wer nutzt die App auf diesem Gerät, und was wird angezeigt ----------
 // Die Rolle ist nur eine Voreinstellung für die Anzeige-Schalter; jeder Schalter bleibt einzeln änderbar.
 const ROLES = {
-  keyboard: { name: 'Keyboard', show: { chords: true, nord: true } },
-  vocals: { name: 'Gesang', show: { chords: false, nord: false } },
-  guitar: { name: 'Gitarre', show: { chords: true, nord: false } },
-  bass: { name: 'Bass', show: { chords: true, nord: false } },
-  drums: { name: 'Schlagzeug', show: { chords: false, nord: false } },
-  mixer: { name: 'Mischpult', show: { chords: false, nord: false } },
+  keyboard: { name: 'Keyboard', show: { chords: true, nord: true, metro: false } },
+  vocals: { name: 'Gesang', show: { chords: false, nord: false, metro: false } },
+  guitar: { name: 'Gitarre', show: { chords: true, nord: false, metro: false } },
+  bass: { name: 'Bass', show: { chords: true, nord: false, metro: false } },
+  drums: { name: 'Schlagzeug', show: { chords: false, nord: false, metro: true } },
+  mixer: { name: 'Mischpult', show: { chords: false, nord: false, metro: false } },
 };
-const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen' };
+const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen', metro: 'Metronom (Tempo-Leiste)' };
+// Schalter, die ohne ausdrückliche Wahl aus sind (alle anderen sind an)
+const SHOW_OFF = ['metro'];
 const profile = () => state.settings.profile || { name: '', role: 'keyboard' };
 /** Songnummer als kleines Schild (leer, wenn der Song keine hat). */
 const noTag = (s) => (s.no ? `<span class="sno">${s.no}</span>` : '');
 /** Suchtext eines Songs: Titel, Interpret und Nummer. */
 const hay = (s) => `${s.title} ${s.artist} ${s.no || ''}`.toLowerCase();
-const shows = (k) => (state.settings.show || {})[k] !== false;
+const shows = (k) => {
+  const v = (state.settings.show || {})[k];
+  return v === undefined ? !SHOW_OFF.includes(k) : v !== false;
+};
+// Metronom-Einstellungen dieses Geräts: off = in der Song-Ansicht ausgeschaltet, accent = Eins hervorheben,
+// click = hörbarer Klick, bottom = Leiste unten am Bildschirm statt oben im Notenbalken
+const metroCfg = () => state.settings.metro || {};
+const metroOn = (s) => shows('metro') && !!s.bpm && !metroCfg().off;
 
 // ---------- Bildschirm anlassen (Wake Lock) ----------
 let wakeLock = null;
@@ -159,7 +169,7 @@ function viewSong(id) {
     <div class="songhead">
       <div class="titles">
         <h1>${noTag(s)}${esc(s.title)}</h1>
-        <div class="muted">${esc(s.artist)}${s.durationSec ? ' · ' + fmtDur(s.durationSec) : ''}</div>
+        <div class="muted">${esc(s.artist)}${s.durationSec ? ' · ' + fmtDur(s.durationSec) : ''}${s.bpm ? ` · ${s.bpm} BPM${s.beats && s.beats !== 4 ? ` · ${s.beats}er-Takt` : ''}` : ''}</div>
         ${ctx ? `<a class="listctx" href="#/liste/${ctx.list.id}">${esc(ctx.list.name)}${ctx.setCount > 1 ? ` · Set ${ctx.setNo}` : ''} · Song ${ctx.songNo} von ${ctx.songCount}</a>` : ''}
       </div>
       <a class="btn prep-only" href="#/bearbeiten/${s.id}">Bearbeiten</a>
@@ -185,8 +195,11 @@ function viewSong(id) {
       <div class="grp" title="Transponieren"><button id="trDown">−</button><span>${tr === 0 ? 'Original' : (tr > 0 ? '+' : '') + tr}<br><b style="color:var(--chord)">${esc(transposeKey(s.key, tr, notation()) || '–')}</b></span><button id="trUp">+</button></div>
       <div class="grp" title="Schriftgröße"><button id="fsDown">A−</button><button id="fsUp">A+</button></div>
       ${sheet ? `<button class="btn prep-only ${ui.mark ? 'primary' : ''}" id="markBtn">${ui.mark ? 'Fertig' : '✎ Im Blatt ändern'}</button>` : ''}
+      ${shows('metro') ? (s.bpm ? `<button class="btn metrobtn ${metroOn(s) ? 'primary' : ''}" id="metroBtn" title="Metronom ein/aus">♩ ${s.bpm}</button>`
+        : `<a class="btn ghost prep-only" href="#/bearbeiten/${s.id}" title="Für das Metronom fehlt das Tempo">♩ Tempo fehlt</a>`) : ''}
       <span class="spacer" style="flex:1"></span>
       ${sheet ? `<span class="badge prep-only">${esc(sheet.name)}</span>` : ''}
+      ${metroOn(s) && !metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent }) : ''}
     </div>
     ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
     <div class="sheet${ui.mark ? ' marking' : (shows('chords') ? '' : ' nochords')}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
@@ -195,7 +208,14 @@ function viewSong(id) {
       ${prev ? `<a class="btn" href="#/song/${prev.id}"${navPos(prev)}>◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
       ${next ? `<a class="btn" href="#/song/${next.id}"${navPos(next)}>${ctx && ctx.breakBefore ? `<span class="pausehint">⏸ ${esc(ctx.breakBefore)} – danach:</span> ` : ''}${esc(next.title)} ▶</a>`
         : (ctx ? '<span class="btn" style="flex:1;opacity:.6">Ende der Liste</span>' : '<span style="flex:1"></span>')}
-    </div>`);
+    </div>
+    ${metroOn(s) && metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent, bottom: true }) : ''}`);
+  document.body.classList.toggle('metro-bottom', metroOn(s) && !!metroCfg().bottom);
+  const mel = $('#metro');
+  if (mel) startMetro(mel, { key: s.id, bpm: s.bpm, beats: s.beats || 4, accent: !!metroCfg().accent, click: !!metroCfg().click });
+  else stopMetro();
+  const mtb = $('#metroBtn');
+  if (mtb) mtb.onclick = () => { state.settings.metro = { ...metroCfg(), off: !metroCfg().off }; persist(); viewSongKeepScroll(id); };
   app.querySelectorAll('.songnav a[data-pos]').forEach((a) => a.addEventListener('click', () => { state.settings.navList = { id: ctx.list.id, pos: +a.dataset.pos }; persist(); }));
 
   keepAwake(true);
@@ -392,6 +412,8 @@ function viewEdit(id) {
         <label class="f"><span>Tonart (z. B. Am, F#, H)</span><input type="text" id="f-key" value="${esc(s.key)}"></label>
         <label class="f"><span>Songnummer (zum Zurufen in der Band)</span><input type="number" inputmode="numeric" min="1" max="9999" id="f-no" value="${s.no || ''}" placeholder="${state.settings.numbering ? 'z. B. ' + nextNo() : 'kommt über ein Paket'}"></label>
         <label class="f"><span>Dauer (mm:ss)</span><input type="text" id="f-dur" value="${esc(fmtDur(s.durationSec))}" placeholder="3:45"></label>
+        <label class="f"><span>Tempo (BPM = Schläge pro Minute)</span><input type="number" inputmode="numeric" min="30" max="300" id="f-bpm" value="${s.bpm || ''}" placeholder="z. B. 120"></label>
+        <label class="f"><span>Taktart (Schläge pro Takt)</span><select id="f-beats">${[2, 3, 4, 5, 6, 7, 9, 12].map((n) => `<option value="${n}" ${(s.beats || 4) === n ? 'selected' : ''}>${n}${n === 4 ? ' (Standard)' : ''}</option>`).join('')}</select></label>
         <label class="f"><span>Programmname auf dem Nord</span><input type="text" id="f-nord" value="${esc(s.nordProgram)}"></label>
         <label class="f"><span>Speicherplatz auf dem Nord (z. B. M 23)</span><input type="text" id="f-slot" value="${esc(s.nordSlot || '')}" placeholder="M 23"></label>
         <label class="f"><span>Alter Kawai-Sound</span><input type="text" id="f-kawai" value="${esc(s.kawai)}"></label>
@@ -448,6 +470,13 @@ function viewEdit(id) {
   bind('#f-artist', (e) => { s.artist = e.target.value.trim(); persist(); });
   bind('#f-key', (e) => { s.key = e.target.value.trim(); persist(); });
   bind('#f-dur', (e) => { s.durationSec = parseDur(e.target.value); persist(); });
+  bind('#f-bpm', (e) => {
+    const v = e.target.value.trim();
+    const n = readBpm(v);
+    if (v && !n) { toast('Bitte ein Tempo von 30 bis 300 BPM eingeben'); e.target.value = s.bpm || ''; return; }
+    s.bpm = n; persist();
+  });
+  bind('#f-beats', (e) => { const n = +e.target.value; s.beats = n === 4 ? null : n; persist(); });
   bind('#f-nord', (e) => { s.nordProgram = e.target.value.trim(); persist(); });
   bind('#f-no', (e) => {
     const v = e.target.value.trim();
@@ -531,8 +560,9 @@ const fileName = (t) => t.replace(/[^\wäöüÄÖÜß\- ]/g, '').trim().replace(
 /** Baut eine saubere ChordPro-Datei: Kopfdaten aus der App, danach der Inhalt ohne alte Kopfzeilen. */
 function toChordPro(s, sheet) {
   const body = sheet.text.replace(/\r\n?/g, '\n').split('\n')
-    .filter((l) => !/^\s*\{\s*(title|t|subtitle|st|artist|key)\s*:/i.test(l)).join('\n').trim();
-  return [`{title: ${s.title}}`, s.artist ? `{subtitle: ${s.artist}}` : '', s.key ? `{key: ${s.key}}` : '', '', body, ''].filter((l, i) => l !== '' || i > 2).join('\n');
+    .filter((l) => !/^\s*\{\s*(title|t|subtitle|st|artist|key|tempo|time)\s*:/i.test(l)).join('\n').trim();
+  return [`{title: ${s.title}}`, s.artist ? `{subtitle: ${s.artist}}` : '', s.key ? `{key: ${s.key}}` : '',
+    s.bpm ? `{tempo: ${s.bpm}}` : '', s.beats ? `{time: ${s.beats}/4}` : '', '', body, ''].filter((l, i) => l !== '' || i > 4).join('\n');
 }
 
 // ---------- Import ----------
@@ -592,9 +622,12 @@ function viewImport() {
       let s = it.target === 'new' ? null : getSong(it.target);
       if (!s) {
         s = newSong({ title: it.meta.title || 'Unbenannt', artist: it.meta.artist, key: it.meta.key || it.guessed,
+          bpm: it.meta.bpm || null, beats: it.meta.beats && it.meta.beats !== 4 ? it.meta.beats : null,
           kawai: it.meta.kawai.join(' · '), parts: [{ name: 'Ganzer Song', lex: '', summary: '', steps: [], tips: '' }] });
       } else {
         if (!s.key) s.key = it.meta.key || it.guessed;
+        if (!s.bpm && it.meta.bpm) s.bpm = it.meta.bpm;
+        if (!s.beats && it.meta.beats && it.meta.beats !== 4) s.beats = it.meta.beats;
         if (!s.kawai && it.meta.kawai.length) s.kawai = it.meta.kawai.join(' · ');
         if (!s.artist) s.artist = it.meta.artist;
       }
@@ -618,6 +651,7 @@ function importPreview(items) {
       <div class="row small">
         ${it.a.empty ? '<span class="badge">Kein Inhalt – vermutlich Pause/Zugabe einer Setliste (abgewählt)</span>' : ''}
         <span class="badge">Tonart: ${esc(it.meta.key || (it.guessed ? it.guessed + ' (Vorschlag)' : '–'))}</span>
+        ${it.meta.bpm ? `<span class="badge">Tempo: ${it.meta.bpm} BPM${it.meta.beats && it.meta.beats !== 4 ? ` · ${it.meta.beats}er-Takt` : ''}</span>` : ''}
         <span class="badge">${it.a.sections} Abschnitte</span>
         <span class="badge">${it.a.triggers} Hinweise</span>
         ${it.meta.kawai.length ? `<span class="badge">Kawai: ${esc(it.meta.kawai.join(' · '))}</span>` : ''}
@@ -770,7 +804,7 @@ function viewPackage() {
     if (p.nothing) out.push('<span class="badge warn">Nichts zu tun</span>');
     return out.join('');
   };
-  const shown = (f, v) => esc(f === 'durationSec' ? fmtDur(v) : v);
+  const shown = (f, v) => esc(f === 'durationSec' ? fmtDur(v) : f === 'bpm' ? `${v} BPM` : f === 'beats' ? `${v} pro Takt` : v);
   const diffRows = (it, i, p) => p.diffs.map((d) => `
     <label class="row small" style="flex-wrap:nowrap"><input type="checkbox" data-diff="${i}" data-f="${d.f}" ${it.keep[d.f] ? '' : 'checked'} style="width:20px;height:20px;flex:none">
       <span><b>${d.label}</b> ändern: bei dir „${shown(d.f, d.mine)}“ → aus dem Paket „${shown(d.f, d.theirs)}“${it.keep[d.f] ? ' <span class="muted">(deiner bleibt)</span>' : ''}</span></label>`).join('');
@@ -1131,6 +1165,20 @@ function viewSettings() {
       <div><b>Schriftgröße Leadsheet:</b> ${st.fontSize}px <span class="muted small">(in der Song-Ansicht mit A−/A+ änderbar)</span></div>
     </div>
 
+    <h2>Metronom</h2>
+    <div class="card stack">
+      <p class="small muted" style="margin:0">Ein Ball pendelt im Songtempo hin und her, jede Umkehr ist ein Schlag. Dafür braucht der Song ein Tempo (unter „Bearbeiten“ oder aus <code>{tempo: …}</code> in der ChordPro-Datei). In der Song-Ansicht schaltet der Knopf ♩ das Metronom ein und aus. <b>Tippen auf die Leiste</b> setzt den Schlag neu: Tippe auf einen Schlag der Band, und der Ball läuft ab da mit ihr – mit hervorgehobener Eins tippst du auf die Eins.</p>
+      <div class="row">
+        <span class="chip ${shows('metro') ? 'on' : ''}" data-show="metro">${shows('metro') ? '✓ ' : ''}In der Song-Ansicht anzeigen</span>
+        <span class="chip ${metroCfg().accent ? 'on' : ''}" data-metro="accent">${metroCfg().accent ? '✓ ' : ''}Eins hervorheben</span>
+        <span class="chip ${metroCfg().click ? 'on' : ''}" data-metro="click">${metroCfg().click ? '✓ ' : ''}Klick hörbar</span>
+      </div>
+      <div><b>Position der Leiste</b><div class="row" style="margin-top:6px">
+        <span class="chip ${!metroCfg().bottom ? 'on' : ''}" data-mpos="top">Oben (unter den Knöpfen)</span>
+        <span class="chip ${metroCfg().bottom ? 'on' : ''}" data-mpos="bottom">Unten am Bildschirm</span></div></div>
+      <div class="small muted">${state.songs.filter((x) => x.bpm).length} von ${state.songs.length} Songs haben ein Tempo.</div>
+    </div>
+
     <h2>Songnummern</h2>
     <div class="card stack">
       <p class="small muted" style="margin:0">Jeder Song kann eine feste Nummer bekommen, die ihr euch in der Probe zurufen könnt („die 12“). Damit keine Nummer doppelt vergeben wird, sollte <b>nur eine Person</b> in der Band Nummern vergeben – alle anderen bekommen sie über „Songs teilen“ mit dem Paket. Eine vergebene Nummer bleibt bei ihrem Song und wird nicht neu vergeben.</p>
@@ -1187,6 +1235,8 @@ function viewSettings() {
   });
   app.querySelectorAll('[data-not]').forEach((c) => c.onclick = () => { st.notation = c.dataset.not; persist(); viewSettings(); });
   app.querySelectorAll('[data-page]').forEach((c) => c.onclick = () => { st.pageMs = +c.dataset.page; persist(); viewSettings(); });
+  app.querySelectorAll('[data-metro]').forEach((c) => c.onclick = () => { const k = c.dataset.metro; st.metro = { ...metroCfg(), [k]: !metroCfg()[k] }; persist(); keepY(viewSettings); });
+  app.querySelectorAll('[data-mpos]').forEach((c) => c.onclick = () => { st.metro = { ...metroCfg(), bottom: c.dataset.mpos === 'bottom' }; persist(); keepY(viewSettings); });
   $('#numAll').onclick = () => {
     const open = state.songs.filter((x) => !x.no).length;
     if (!open) { toast('Alle Songs haben schon eine Nummer'); return; }
@@ -1240,7 +1290,7 @@ function viewSettings() {
 function route() {
   const h = location.hash || '#/';
   const [, view, arg] = h.split('/');
-  if (view !== 'song') keepAwake(false);
+  if (view !== 'song') { keepAwake(false); stopMetro(); document.body.classList.remove('metro-bottom'); }
   if (view !== 'teilen') ui.pkg = null;
   if (view === 'song' && arg) return viewSong(arg);
   if (view === 'bearbeiten' && arg) return viewEdit(arg);

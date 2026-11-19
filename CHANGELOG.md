@@ -1,5 +1,14 @@
 # Änderungen
 
+## 0.1.22 – 19.11.2026
+- **Visuelles Metronom** (Wunsch des Schlagzeugers aus der Bandprobe): Ein Ball pendelt im Songtempo von links nach rechts und zurück, jede Umkehr ist ein Schlag. Auf dem Schlag leuchten der Ball und das Ende der Leiste auf.
+- Die Leiste ist schmal und verdeckt keinen Text: entweder **oben** als letzte Zeile unter den Knöpfen (läuft beim Scrollen mit nach oben und bleibt dort stehen) oder **fest unten** am Bildschirm. Einstellbar unter Einstellungen → Metronom.
+- **Tippen auf die Leiste setzt den Schlag neu:** Tippe auf einen Schlag der Band, und der Ball läuft ab da mit ihr. Mit „Eins hervorheben“ (abschaltbar, Standard aus) zeigt die Leiste 1-2-3-4, die Eins leuchtet orange – getippt wird dann auf die Eins.
+- Läuft genau, auch auf langsamen Geräten: Die Position wird in jedem Bild aus der Uhrzeit berechnet. Optional **hörbarer Klick** (Standard aus), über die Audio-Uhr des Geräts eingeplant.
+- Knopf **♩ 120** in der Song-Ansicht schaltet das Metronom ein und aus, auch auf der Bühne. Fehlt das Tempo, steht dort im Vorbereitungsmodus „♩ Tempo fehlt“.
+- Anzeigen lässt es sich unter Einstellungen → Mein Profil → Anzeigen; bei der Rolle „Schlagzeug“ ist es automatisch an, bei allen anderen aus.
+- **Neue Song-Felder Tempo (BPM) und Taktart** unter „Bearbeiten“. Beim ChordPro-Import werden `{tempo: …}` und `{time: …}` übernommen, beim ChordPro-Export wieder geschrieben. Tempo und Taktart reisen im Paket und Band-Paket mit und werden beim Einspielen wie Tonart und Dauer abgeglichen.
+
 ## 0.1.21 – 17.11.2026
 - **Soundvorschläge für 87 weitere Songs** (die Songs aus „Rest.chopro“, z. B. Bohemian Rhapsody, Hold the Line, Piano Man, Jump, Titanium): jeweils eine Kurzbeschreibung und eine Schritt-Anleitung für den Nord. Grundlage sind das Original und deine Notizen aus der Datei (Kawai-Codes, „33C Orgel 70 %“, „Strings linke Hand“, „HiQBass −1 Okt“). Bei *Bed of Roses* (P 15) und *No Roots* (P 21) ist dein vorhandener Speicherplatz eingetragen.
 - Die Vorschläge kommen beim ersten Start still zu den Songs, die noch keinen Sound haben. Eigene Eintragungen bleiben unberührt.

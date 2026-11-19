@@ -99,7 +99,7 @@ export function sortedSongs() {
 export function newSong(partial = {}) {
   const s = {
     id: uid(), title: 'Neuer Song', artist: '', key: '', nordProgram: '', nordStored: false,
-    kawai: '', durationSec: null, tags: [], notes: '', aliases: [], transpose: 0,
+    kawai: '', durationSec: null, bpm: null, beats: null, tags: [], notes: '', aliases: [], transpose: 0,
     parts: [{ name: 'Ganzer Song', lex: '', summary: '', steps: [], tips: '' }],
     sheets: [], activeSheet: null, ...partial,
   };
@@ -331,7 +331,7 @@ export function exportPackage(ids, { sounds = false, from = '', role = '', textO
     items: l.items.map((it) => {
       if (it.type === 'break') return { type: 'break', name: it.name || 'Pause' };
       const s = getSong(it.id);
-      return s ? { type: 'song', uid: songUid(s), no: s.no || null, title: s.title, artist: s.artist || '', key: s.key || '', durationSec: s.durationSec || null } : null;
+      return s ? { type: 'song', uid: songUid(s), no: s.no || null, title: s.title, artist: s.artist || '', key: s.key || '', durationSec: s.durationSec || null, bpm: s.bpm || null, beats: s.beats || null } : null;
     }).filter(Boolean),
   }));
   // bare: Songs, die nur mit ihren Eckdaten mitgehen (Band-Paket: die ganze Songliste); ids: Songs mit Blatt
@@ -341,7 +341,7 @@ export function exportPackage(ids, { sounds = false, from = '', role = '', textO
     const o = {
       uid: songUid(s), no: s.no || null,
       title: s.title, artist: s.artist || '', key: s.key || '', transpose: s.transpose || 0,
-      durationSec: s.durationSec || null, aliases: s.aliases || [],
+      durationSec: s.durationSec || null, bpm: s.bpm || null, beats: s.beats || null, aliases: s.aliases || [],
       sheet: sh ? { name: sh.name, text: textOf(sh.text) } : null,
     };
     if (sounds) o.parts = clone(s.parts || []);
@@ -432,8 +432,10 @@ function takeIdentity(s, x) {
 
 // Gemeinsame Eckdaten eines Songs. Weicht ein Wert beim Empfänger ab, zeigt die Vorschau das an;
 // standardmäßig wird der Wert aus dem Paket übernommen, der Empfänger kann einzelne abwählen (item.keep).
-export const SHARED_FIELDS = [['title', 'Titel'], ['artist', 'Interpret'], ['key', 'Tonart'], ['durationSec', 'Dauer']];
-const fieldVal = (f, v) => (f === 'durationSec' ? (+v > 0 ? Math.round(+v) : null) : (typeof v === 'string' && v.trim() ? v.trim() : null));
+// Tempo (bpm) und Taktart (beats = Schläge pro Takt) seit 0.1.22; ältere Pakete haben sie nicht → bleibt leer.
+export const SHARED_FIELDS = [['title', 'Titel'], ['artist', 'Interpret'], ['key', 'Tonart'], ['durationSec', 'Dauer'], ['bpm', 'Tempo'], ['beats', 'Taktart']];
+const NUM_FIELDS = ['durationSec', 'bpm', 'beats'];
+const fieldVal = (f, v) => (NUM_FIELDS.includes(f) ? (+v > 0 ? Math.round(+v) : null) : (typeof v === 'string' && v.trim() ? v.trim() : null));
 
 /** Vergleicht die Eckdaten → { fill: [Feld] (bei dir leer), diffs: [{ f, label, mine, theirs }] } */
 function fieldPlan(t, x) {
@@ -473,7 +475,8 @@ export function applyPackage(pkg, { sounds = false } = {}) {
     if (!s) {
       s = newSong({
         title: x.title.trim(), artist: x.artist || '', key: x.key || '', transpose: +x.transpose || 0,
-        durationSec: x.durationSec || null, aliases: Array.isArray(x.aliases) ? x.aliases : [], no: +x.no || null,
+        durationSec: x.durationSec || null, bpm: fieldVal('bpm', x.bpm), beats: fieldVal('beats', x.beats),
+        aliases: Array.isArray(x.aliases) ? x.aliases : [], no: +x.no || null,
       });
       created++;
     } else {
@@ -508,7 +511,8 @@ export function applyPackage(pkg, { sounds = false } = {}) {
       let id = resolveTitle(pkg, it, byTitle);
       if (!id) {
         // Song gibt es hier noch nicht → als leeren Song anlegen, damit die Liste vollständig ist
-        id = newSong({ title: it.title.trim(), artist: it.artist || '', key: it.key || '', durationSec: it.durationSec || null, no: +it.no || null }).id;
+        id = newSong({ title: it.title.trim(), artist: it.artist || '', key: it.key || '', durationSec: it.durationSec || null,
+          bpm: fieldVal('bpm', it.bpm), beats: fieldVal('beats', it.beats), no: +it.no || null }).id;
         created++;
       }
       takeIdentity(getSong(id), it);
