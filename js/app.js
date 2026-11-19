@@ -10,7 +10,7 @@ import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.23';
+export const APP_VERSION = '0.1.24';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -1308,7 +1308,7 @@ function viewSettings() {
   } catch (e) { /* nicht unterstützt */ }
   $('#imp').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt. Der jetzige Stand wird beiseitegelegt und lässt sich hier zurückholen.')) return;
+    if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt. Der jetzige Stand wird beiseitegelegt und lässt sich hier zurückholen.\n\nAnsicht, Schriftgröße, Blätter-Tempo, Metronom und die Songnummern-Vergabe bleiben, wie sie auf diesem Gerät eingestellt sind.')) return;
     try {
       const r = importBackup(await f.text());
       toast(!lastSaveOk() ? 'Speichern fehlgeschlagen – Speicher voll?'

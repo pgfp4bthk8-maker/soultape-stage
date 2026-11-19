@@ -291,6 +291,11 @@ export function restorePrevious() {
 }
 
 /** Spielt eine Sicherung ein. Rückgabe: { kept } – konnte der bisherige Stand beiseitegelegt werden? */
+// Gehören zum Gerät, nicht zur Person: werden beim Einspielen einer Sicherung nicht übernommen.
+// layout = Handy/Tablet, numbering = dieses Gerät vergibt Songnummern, mode = Bühne/Vorbereitung,
+// fontSize/pageMs = Schriftgröße und Blätter-Tempo, metro = Metronom (Lage oben/unten, Klick).
+export const DEVICE_SETTINGS = ['layout', 'numbering', 'mode', 'fontSize', 'pageMs', 'metro'];
+
 export function importBackup(text) {
   const d = JSON.parse(text);
   if (!d || !Array.isArray(d.songs)) throw new Error('Das ist keine gültige Sicherungsdatei.');
@@ -303,9 +308,14 @@ export function importBackup(text) {
   // Sicherung einer anderen Person (z. B. die Sicherung des Keyboarders beim Kollegen): eigenes Profil und Nummernvergabe behalten
   const mine = state.settings.profile, theirs = d.settings && d.settings.profile;
   const ownProfile = !!(mine && mine.name && theirs && theirs.name && !sameName(mine.name, theirs.name));
-  const numbering = state.settings.numbering;
+  // Einstellungen, die zum Gerät gehören (Handy ≠ iPad), bleiben – auch bei der eigenen Sicherung
+  const device = {};
+  for (const k of DEVICE_SETTINGS) device[k] = state.settings[k];
   state.settings = { ...state.settings, ...(d.settings || {}) };
-  if (ownProfile) { state.settings.profile = mine; state.settings.numbering = numbering; }
+  for (const k of DEVICE_SETTINGS) {
+    if (device[k] === undefined) delete state.settings[k]; else state.settings[k] = device[k];
+  }
+  if (ownProfile) state.settings.profile = mine;
   state.seedVersion = d.seedVersion || state.seedVersion;
   state.noMax = Math.max(state.noMax || 0, d.noMax || 0);
   state.settings.navList = null;
