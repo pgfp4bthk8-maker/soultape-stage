@@ -255,6 +255,44 @@ svg.panel { width: 100%; height: auto; display: block; border-radius: 10px; }
 .sheet .review { color: var(--review); text-decoration: underline dotted; }
 .sheet .odd { color: var(--review); text-decoration: underline wavy; }
 
+/* ---------- Metronom ---------- */
+/* Schmale Leiste: oben als letzte Zeile des (mitlaufenden) Notenbalkens oder fest unten am Bildschirm.
+   Sie verdeckt keinen Text und scrollt nicht mit. Tippen setzt den Schlag neu. */
+.metro {
+  flex: 1 0 100%; display: flex; align-items: center; gap: 10px;
+  height: 34px; padding: 0 4px; cursor: pointer; touch-action: manipulation;
+  user-select: none; -webkit-user-select: none;
+}
+.metro.bottom {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+  height: calc(40px + env(safe-area-inset-bottom)); padding: 0 16px env(safe-area-inset-bottom);
+  background: rgba(15, 15, 16, .96); border-top: 1px solid var(--line);
+}
+body.metro-bottom main { padding-bottom: 60px; }
+.metro:not(.bottom) .mt-bpm { display: none; }   /* oben steht das Tempo schon auf dem Knopf ♩ */
+.metro .mt-bpm { font-weight: 800; font-size: 15px; color: var(--muted); min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.metro .mt-dots { display: inline-flex; gap: 4px; }
+.metro .mt-dots i {
+  font-style: normal; font-size: 12px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; background: var(--bg3); color: var(--muted);
+}
+.metro .mt-dots i.on { background: var(--text); color: var(--bg); }
+.metro .mt-dots i[data-b="0"].on { background: var(--trigger-bg); color: var(--trigger-fg); }
+.metro .mt-track { position: relative; flex: 1; height: 22px; border-radius: 11px; background: var(--bg2); border: 1px solid var(--line); }
+.metro .mt-end { position: absolute; top: 2px; bottom: 2px; width: 6px; border-radius: 3px; background: var(--ok); opacity: .25; }
+.metro .mt-end.l { left: 2px; }
+.metro .mt-end.r { right: 2px; }
+.metro .mt-ball {
+  position: absolute; left: 0; top: 0; width: 22px; height: 20px; border-radius: 50%;
+  background: var(--ok); will-change: transform;
+}
+.metro .mt-ball.hit { background: #fff; box-shadow: 0 0 12px 3px rgba(255, 255, 255, .7); }
+.metro .mt-ball.one { background: var(--trigger-bg); box-shadow: 0 0 14px 4px rgba(255, 138, 0, .8); }
+.metro.one .mt-track { border-color: var(--trigger-bg); }
+.metro.tapped .mt-track { animation: mt-tap .35s ease-out; }
+@keyframes mt-tap { from { box-shadow: 0 0 0 3px var(--review); } to { box-shadow: 0 0 0 0 transparent; } }
+.sheetbar .metrobtn { font-variant-numeric: tabular-nums; }
+
 /* ---------- Setlisten ---------- */
 .listrows { border-top: 1px solid var(--line); }
 .sethead { margin: 18px 0 4px; font-weight: 800; font-size: 17px; color: var(--section); }

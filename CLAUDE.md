@@ -41,6 +41,7 @@ Die fachlichen Anforderungen stehen in **`docs/ANFORDERUNGEN.md`** (Version 0.2)
 | `js/data.js` | `LEXICON` (Sound-Lexikon) und `SEED_SONGS` (10 Start-Songs mit Soundvorschlägen), Bausteine für Anleitungsschritte |
 | `js/panel.js` | SVG-Landkarten der 5 Nord-Sektionen (`organ`, `piano`, `synth`, `effects`, `program`), Hervorhebung von Reglern |
 | `js/chordpro.js` | ChordPro einlesen (tolerant), Akkorde erkennen/transponieren, H/B-Schreibweise, Darstellung als HTML |
+| `js/metronome.js` | Visuelles Metronom (seit 0.1.22): `metroAt()` (reine Rechnung), `metroHtml()`, `startMetro()`/`stopMetro()`, optionaler Klick über Web Audio |
 | `sw.js` | Service Worker: Cache-first, Aktualisierung still im Hintergrund |
 
 ### Datenmodell (Song)
@@ -50,7 +51,8 @@ Die fachlichen Anforderungen stehen in **`docs/ANFORDERUNGEN.md`** (Version 0.2)
   id, title, artist, key, transpose,        // transpose: Halbtöne, pro Song gespeichert
   nordProgram, nordStored,                  // Programmname auf dem Nord + "schon gespeichert?"
   kawai,                                    // alter Sound-Code vom Kawai, nur als Referenz
-  durationSec, tags: [], notes, aliases: [],
+  durationSec, bpm, beats,                   // bpm: Tempo 30–300; beats: Schläge pro Takt, null = 4 (seit 0.1.22)
+  tags: [], notes, aliases: [],
   parts: [{ name, lex, summary, tips, steps: [Step] }],   // mehrere Sounds pro Song (Strophe/Refrain/Medley-Teil)
   sheets: [{ id, name, created, text }], activeSheet       // Leadsheet-Versionen (ChordPro-Rohtext)
 }
@@ -92,6 +94,9 @@ Die erste Probedatei des Nutzers (liegt im claude.ai-Projekt des Nutzers, **nich
 6. **PDF-Export** im hellen Druckformat.
 7. Gebremstes Wischen auf der Bühne (aktuell normales Scrollen + Tipp-Blättern).
 8. Später: Bluetooth-Fußschalter (sendet meist Pfeil-/Bild-Tasten → Tastatur-Events), MIDI-Programmwechsel (Web MIDI am PC; Safari/iPad hat kein Web MIDI → Brücken-App oder native App), Band-Synchronisation, Referenzaufnahmen, Hörbeispiele.
+
+**Wünsche aus der Bandprobe** (Doc des Nutzers, am 19.11.2026 mit dem Nutzer durchgesehen): (1) automatische Synchronisation per Cloud – widerspricht „kein Server“, erst grundsätzlich entscheiden; (2) Smartphone-Ansicht – gut machbar, nur CSS/Layout; (3) **visuelles Metronom – erledigt in 0.1.22**; (4) PDF/Bilder als Blatt – braucht IndexedDB statt localStorage (5 MB), große Backups; (5) Effekt-Marken fürs Mischpult – wie `{wechsel}`, im Blatt des Mischers; Wing per OSC nur über ein Hilfsprogramm; (6) Technik-Assistent mit Anleitungen – KI/API, nur Vorbereitung, gehört zu Punkt 4.
+- **Metronom** (seit 0.1.22): Leiste `#metro` oben als letzte Zeile der `.sheetbar` oder fest unten (`.metro.bottom`, `body.metro-bottom`). Anzeige-Schalter `settings.show.metro` (Standard aus, `SHOW_OFF`; Rolle Schlagzeug = an), Einstellungen `settings.metro = { off, accent, click, bottom }`, `metroOn()` in `js/app.js`. Ballposition aus `performance.now()` berechnet (Bildraten-unabhängig); Neuzeichnen desselben Songs behält den Takt (`key` = Song-ID). Tippen auf die Leiste (`pointerdown`) setzt Schlag 0 = Eins. Klick per Web Audio, im Voraus eingeplant (`getOutputTimestamp`), Audio erst nach einem Tippen (iOS). Leiste ist kein Pop-up und bleibt auch auf der Bühne. Im Vorschau-Browser von Claude Code kommen nur wenige Bilder pro Sekunde an – Genauigkeit über `metroAt()` prüfen.
 
 **Bekannte Kleinigkeiten:**
 - Seit 0.1.3 haben alle 37 Songs der Auftritts-Setliste Soundvorschläge in `SEED_SONGS` (47 Einträge). `refreshSeeds()` in `js/store.js` ordnet sie importierten Songs über den Titel zu und füllt nur Songs ohne Sound; bei höherer `SEED_VERSION` passiert das still beim Start. Das **NDW-Medley** besteht aus Irgendwie, irgendwo, irgendwann (Nena) → Alles nur geklaut (Die Prinzen) → Major Tom (Peter Schilling) → Sternenhimmel (Hubert Kah); seit 0.1.9 mit vier Sound-Teilen (ein Programm für Teil 1–3, zweites Programm für den Lead in Teil 4), ungehörte Startwerte. Die Kawai-Codes (`11A`, `33C` …) sind nicht entschlüsselt.
