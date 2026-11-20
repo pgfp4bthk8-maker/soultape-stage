@@ -11,7 +11,7 @@ import { splitSongs, renderSheet, sectionNames, analyze, guessKey, transposeKey,
 import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.26';
+export const APP_VERSION = '0.1.27';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');

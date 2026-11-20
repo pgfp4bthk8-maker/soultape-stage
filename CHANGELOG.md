@@ -1,5 +1,8 @@
 # Änderungen
 
+## 0.1.27 – 20.11.2026
+- **Größere Ampel für die Datensicherung** (Wunsch aus der Band): Der Punkt neben „Einstellungen“ bzw. ⚙ ist jetzt deutlich größer (auf dem Handy 18 statt 10 Pixel) und hat einen dunklen Rand, damit er auf jedem Hintergrund auffällt. Auch die Ampel in den Einstellungen und im Hinweis „Sicherung fällig“ ist größer.
+
 ## 0.1.26 – 20.11.2026
 - **Wing-Snapshot pro Song** für den Mischer: neues Feld unter „Bearbeiten“ (z. B. „12“ oder ein Name). So weiß der Mischer bei jedem Song, welche gespeicherte Pult-Einstellung er laden soll – ähnlich wie der Nord-Speicherplatz für das Keyboard. Umschalten muss er am Pult weiterhin selbst.
 - In der Song-Ansicht steht oben ein grüner Kasten mit dem Snapshot **dieses Songs und des nächsten Songs** der Setliste („Danach: 13 · Titel“, vor einer Pause „Nach der Pause“). Der Mischer kann den nächsten Snapshot also schon vorbereiten.
