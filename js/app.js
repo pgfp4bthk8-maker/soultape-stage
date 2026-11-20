@@ -11,7 +11,7 @@ import { splitSongs, renderSheet, sectionNames, analyze, guessKey, transposeKey,
 import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.25';
+export const APP_VERSION = '0.1.26';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -52,11 +52,11 @@ const ROLES = {
   guitar: { name: 'Gitarre', show: { chords: true, nord: false, metro: false } },
   bass: { name: 'Bass', show: { chords: true, nord: false, metro: false } },
   drums: { name: 'Schlagzeug', show: { chords: false, nord: false, metro: true } },
-  mixer: { name: 'Mischpult', show: { chords: false, nord: false, metro: false } },
+  mixer: { name: 'Mischpult', show: { chords: false, nord: false, metro: false, wing: true } },
 };
-const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen', metro: 'Metronom (Tempo-Leiste)', flow: 'Ablauf (wer singt, Solos, Effekte)' };
+const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen', metro: 'Metronom (Tempo-Leiste)', flow: 'Ablauf (wer singt, Solos, Effekte)', wing: 'Wing-Snapshot (Mischpult)' };
 // Schalter, die ohne ausdrückliche Wahl aus sind (alle anderen sind an)
-const SHOW_OFF = ['metro'];
+const SHOW_OFF = ['metro', 'wing'];
 const profile = () => state.settings.profile || { name: '', role: 'keyboard' };
 /** Songnummer als kleines Schild (leer, wenn der Song keine hat). */
 const noTag = (s) => (s.no ? `<span class="sno">${s.no}</span>` : '');
@@ -64,7 +64,11 @@ const noTag = (s) => (s.no ? `<span class="sno">${s.no}</span>` : '');
 const hay = (s) => `${s.title} ${s.artist} ${s.no || ''}`.toLowerCase();
 const shows = (k) => {
   const v = (state.settings.show || {})[k];
-  return v === undefined ? !SHOW_OFF.includes(k) : v !== false;
+  if (v !== undefined) return v !== false;
+  // Schalter, die es beim Wählen der Rolle noch nicht gab (z. B. wing seit 0.1.26): Vorgabe der Rolle
+  const r = ROLES[profile().role];
+  if (r && r.show[k] !== undefined) return r.show[k];
+  return !SHOW_OFF.includes(k);
 };
 // Metronom-Einstellungen dieses Geräts: off = in der Song-Ansicht ausgeschaltet, accent = Eins hervorheben,
 // click = hörbarer Klick, bottom = Leiste unten am Bildschirm statt oben im Notenbalken
@@ -137,6 +141,7 @@ function shell(active, body) {
   const bk = backupStatus();
   document.body.classList.toggle('stage', isStage());
   document.body.classList.toggle('nonord', !shows('nord'));
+  document.body.classList.toggle('nowing', !shows('wing'));
   document.documentElement.style.setProperty('--font', (state.settings.fontSize || 22) + 'px');
   app.innerHTML = `
     <header class="top">
@@ -159,6 +164,9 @@ function shell(active, body) {
   };
 }
 
+/** Wing-Snapshot als kleines Schild (nur für das Mischpult sichtbar, leer ohne Eintrag). */
+const snapBadge = (s) => (s && s.wingSnap ? `<span class="badge snap wing-only" title="Wing-Snapshot">🎚 ${esc(s.wingSnap)}</span>` : '');
+
 // ---------- Songliste ----------
 function viewSongs() {
   const q = (ui.search || '').toLowerCase();
@@ -178,7 +186,7 @@ function viewSongs() {
       <li><a href="#/song/${s.id}">
         ${s.no ? `<div class="sno big">${s.no}</div>` : ''}<div style="flex:1"><div class="t">${esc(s.title)}</div>
           <div class="a">${esc(s.artist)}${s.parts?.length > 1 ? `<span class="nord-only"> · ${s.parts.length} Sounds</span>` : ''}${activeSheet(s) ? ' · Leadsheet' : ''}</div></div>
-        <div class="k"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot nord-only">${esc(s.nordSlot)}</span>` : ''}${s.nordStored ? '<span class="badge ok nord-only">auf dem Nord</span>' : '<span class="badge nord-only">noch nicht gespeichert</span>'}</div>
+        <div class="k"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${snapBadge(s)}${s.nordSlot ? `<span class="badge slot nord-only">${esc(s.nordSlot)}</span>` : ''}${s.nordStored ? '<span class="badge ok nord-only">auf dem Nord</span>' : '<span class="badge nord-only">noch nicht gespeichert</span>'}</div>
       </a></li>`).join('')}
     </ul>
     ${list.length ? '' : '<p class="muted">Kein Song gefunden.</p>'}`);
@@ -220,6 +228,10 @@ function viewSong(id) {
       </div>
       <a class="btn prep-only" href="#/bearbeiten/${s.id}">Bearbeiten</a>
     </div>
+    ${shows('wing') ? `<div class="wingbox">
+      <div><div class="lbl">Wing-Snapshot</div><div class="snapval">${s.wingSnap ? esc(s.wingSnap) : '<span class="muted small">nicht eingetragen</span>'}</div></div>
+      ${next ? `<div class="snapnext"><div class="lbl">${ctx && ctx.breakBefore ? 'Nach der Pause' : 'Danach'}</div><div><b>${next.wingSnap ? esc(next.wingSnap) : '–'}</b> <span class="muted">${esc(next.title)}</span></div></div>` : ''}
+    </div>` : ''}
     <div class="nord-only">
     <div class="nordbox">
       <div><div class="lbl">Nord-Programm</div><div class="prog">${s.nordSlot ? `<span class="slot">${esc(s.nordSlot)}</span>` : ''}${esc(s.nordProgram || s.title)}</div>
@@ -245,7 +257,7 @@ function viewSong(id) {
         : `<a class="btn ghost prep-only" href="#/bearbeiten/${s.id}" title="Für das Metronom fehlt das Tempo">♩ Tempo fehlt</a>`) : ''}
       <span class="spacer" style="flex:1"></span>
       ${sheet ? `<span class="badge prep-only sheetname">${esc(sheet.name)}</span>` : ''}
-      ${next ? `<a class="btn nextbtn phone-only" href="#/song/${next.id}"${navPos(next)} title="Nächster Song">${ctx && ctx.breakBefore ? '⏸ ' : ''}<span class="nt">${esc(next.title)}</span> ▶</a>` : ''}
+      ${next ? `<a class="btn nextbtn phone-only" href="#/song/${next.id}"${navPos(next)} title="Nächster Song">${ctx && ctx.breakBefore ? '⏸ ' : ''}<span class="nt">${esc(next.title)}</span>${snapBadge(next)} ▶</a>` : ''}
       ${metroOn(s) && !metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent }) : ''}
     </div>
     ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
@@ -521,6 +533,7 @@ function viewEdit(id) {
         <label class="f"><span>Taktart (Schläge pro Takt)</span><select id="f-beats">${[2, 3, 4, 5, 6, 7, 9, 12].map((n) => `<option value="${n}" ${(s.beats || 4) === n ? 'selected' : ''}>${n}${n === 4 ? ' (Standard)' : ''}</option>`).join('')}</select></label>
         <label class="f"><span>Programmname auf dem Nord</span><input type="text" id="f-nord" value="${esc(s.nordProgram)}"></label>
         <label class="f"><span>Speicherplatz auf dem Nord (z. B. M 23)</span><input type="text" id="f-slot" value="${esc(s.nordSlot || '')}" placeholder="M 23"></label>
+        <label class="f"><span>Wing-Snapshot (Mischpult, z. B. 12 oder Name)</span><input type="text" id="f-wing" value="${esc(s.wingSnap || '')}" placeholder="z. B. 12"></label>
         <label class="f"><span>Alter Kawai-Sound</span><input type="text" id="f-kawai" value="${esc(s.kawai)}"></label>
       </div>
       <label class="row"><input type="checkbox" id="f-stored" ${s.nordStored ? 'checked' : ''} style="width:22px;height:22px"> Programm ist auf dem Nord gespeichert</label>
@@ -593,6 +606,7 @@ function viewEdit(id) {
     e.target.value = s.no || '';
   });
   bind('#f-slot', (e) => { s.nordSlot = e.target.value.trim().toUpperCase(); persist(); });
+  bind('#f-wing', (e) => { s.wingSnap = e.target.value.trim(); persist(); });
   bind('#f-kawai', (e) => { s.kawai = e.target.value.trim(); persist(); });
   bind('#f-notes', (e) => { s.notes = e.target.value; persist(); });
   bind('#f-stored', (e) => { s.nordStored = e.target.checked; persist(); });
@@ -1108,7 +1122,7 @@ function viewList(id) {
     songNo++;
     return `<div class="lrow" data-i="${i}"><span class="drag prep-only">≡</span><span class="no">${songNo}</span>
       <a class="lt" href="#/song/${s.id}" data-open="${i}"><span class="t">${esc(s.title)}${noTag(s)}</span><span class="a">${esc(s.artist)}</span></a>
-      <span class="meta"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.durationSec ? fmtDur(s.durationSec) : ''}</span>${edit}</div>`;
+      <span class="meta"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${snapBadge(s)}${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.durationSec ? fmtDur(s.durationSec) : ''}</span>${edit}</div>`;
   }).join('');
 
   shell('lists', `

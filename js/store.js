@@ -353,7 +353,7 @@ export function exportPackage(ids, { sounds = false, from = '', role = '', textO
       uid: songUid(s), no: s.no || null,
       title: s.title, artist: s.artist || '', key: s.key || '', transpose: s.transpose || 0,
       durationSec: s.durationSec || null, bpm: s.bpm || null, beats: s.beats || null, aliases: s.aliases || [],
-      flow: cleanFlow(s.flow),
+      flow: cleanFlow(s.flow), wingSnap: s.wingSnap || '',
       sheet: sh ? { name: sh.name, text: textOf(sh.text) } : null,
     };
     if (sounds) o.parts = clone(s.parts || []);
@@ -446,7 +446,8 @@ function takeIdentity(s, x) {
 // standardmäßig wird der Wert aus dem Paket übernommen, der Empfänger kann einzelne abwählen (item.keep).
 // Tempo (bpm) und Taktart (beats = Schläge pro Takt) seit 0.1.22; ältere Pakete haben sie nicht → bleibt leer.
 // Ablauf (flow: wer singt, Solos, Effekte) seit 0.1.25 – ein Feld aus mehreren Zeilen, verglichen als Ganzes.
-export const SHARED_FIELDS = [['title', 'Titel'], ['artist', 'Interpret'], ['key', 'Tonart'], ['durationSec', 'Dauer'], ['bpm', 'Tempo'], ['beats', 'Taktart'], ['flow', 'Ablauf']];
+// Wing-Snapshot (wingSnap: gespeicherte Pult-Einstellung pro Song, Text) seit 0.1.26.
+export const SHARED_FIELDS = [['title', 'Titel'], ['artist', 'Interpret'], ['key', 'Tonart'], ['durationSec', 'Dauer'], ['bpm', 'Tempo'], ['beats', 'Taktart'], ['flow', 'Ablauf'], ['wingSnap', 'Wing-Snapshot']];
 const NUM_FIELDS = ['durationSec', 'bpm', 'beats'];
 const fieldVal = (f, v) => {
   if (f === 'flow') { const c = cleanFlow(v); return c.length ? c : null; }
@@ -493,7 +494,7 @@ export function applyPackage(pkg, { sounds = false } = {}) {
       s = newSong({
         title: x.title.trim(), artist: x.artist || '', key: x.key || '', transpose: +x.transpose || 0,
         durationSec: x.durationSec || null, bpm: fieldVal('bpm', x.bpm), beats: fieldVal('beats', x.beats),
-        aliases: Array.isArray(x.aliases) ? x.aliases : [], no: +x.no || null, flow: fieldVal('flow', x.flow) || [],
+        aliases: Array.isArray(x.aliases) ? x.aliases : [], no: +x.no || null, flow: fieldVal('flow', x.flow) || [], wingSnap: fieldVal('wingSnap', x.wingSnap) || '',
       });
       created++;
     } else {

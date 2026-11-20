@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.1.26 – 20.11.2026
+- **Wing-Snapshot pro Song** für den Mischer: neues Feld unter „Bearbeiten“ (z. B. „12“ oder ein Name). So weiß der Mischer bei jedem Song, welche gespeicherte Pult-Einstellung er laden soll – ähnlich wie der Nord-Speicherplatz für das Keyboard. Umschalten muss er am Pult weiterhin selbst.
+- In der Song-Ansicht steht oben ein grüner Kasten mit dem Snapshot **dieses Songs und des nächsten Songs** der Setliste („Danach: 13 · Titel“, vor einer Pause „Nach der Pause“). Der Mischer kann den nächsten Snapshot also schon vorbereiten.
+- Der Snapshot erscheint als kleines grünes Schild 🎚 auch in der Songliste, in der Setliste und auf dem Handy im Knopf für den nächsten Song.
+- Sichtbar nur bei der Rolle **Mischpult** (auch wenn die Rolle schon vor diesem Update gewählt wurde); alle anderen können ihn unter Einstellungen → Mein Profil → Anzeigen einschalten.
+- Der Snapshot **reist im Band-Paket mit** und wird wie Tonart und Dauer abgeglichen. Am einfachsten trägt der Mischer die Snapshots auf seinem Gerät ein und schickt dir ein Band-Paket zurück.
+
 ## 0.1.25 – 20.11.2026
 - **Ablauf pro Song** (Wunsch des Mischers): Wer singt wo, wo sind die Solos und welche Effekte braucht das Pult. Eingegeben wird er als kleine Tabelle unter „Bearbeiten“ → „Ablauf“ (Spalten Teil, Gesang, Solo, Effekt/Hinweis). Beim Tippen schlägt die App Instrumente, deinen Profilnamen und alle Namen vor, die du schon in anderen Songs eingetragen hast.
 - Knopf **„Abschnitte aus dem Blatt übernehmen“** füllt die Spalte „Teil“ mit den Abschnitten des aktiven Blatts – dann nur noch Sänger und Solos dazuschreiben.
