@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.1.28 – 20.11.2026
+- **Zeilen ordnen**: Ein neuer Knopf „↵ Zeilen ordnen“ unter „Bearbeiten“ → „Leadsheet-Versionen“ ordnet die Zeilen des aktiven Blatts automatisch:
+  - Wiederholt sich eine Akkordfolge in einer Zeile, steht jede Runde in einer eigenen Zeile, z. B. `E H C#m A E H C#m A` → zweimal `E H C#m A` untereinander. Eine Zeile behält mindestens 4 Akkorde bzw. Takte.
+  - Akkordzeilen ohne Wiederholung werden nur an einer großen Lücke geteilt, die der Schreiber selbst gelassen hat.
+  - Vor jedem Abschnitt (Strophe, Refrain, Bridge …) kommt eine Leerzeile. Ein Soundwechsel direkt davor rutscht mit.
+  - Sehr lange Textzeilen werden an einem Satzzeichen nahe der Mitte geteilt, bevorzugt dort, wo die Akkordfolge von vorn beginnt.
+- Vor dem Speichern zeigt eine **Vorschau** Vorher und Nachher nebeneinander (auf dem Handy untereinander). Geänderte Stellen sind grün markiert.
+- Gespeichert wird eine **neue Fassung „Zeilen geordnet“**, die dann aktiv ist. Das Original bleibt unverändert, und du kannst jederzeit zurückschalten.
+- Inhalt, Akkorde, Abschnitte, Hinweise und Soundwechsel bleiben gleich, nur die Zeilen werden anders verteilt.
+
 ## 0.1.27 – 20.11.2026
 - **Größere Ampel für die Datensicherung** (Wunsch aus der Band): Der Punkt neben „Einstellungen“ bzw. ⚙ ist jetzt deutlich größer (auf dem Handy 18 statt 10 Pixel) und hat einen dunklen Rand, damit er auf jedem Hintergrund auffällt. Auch die Ampel in den Einstellungen und im Hinweis „Sicherung fällig“ ist größer.
 
