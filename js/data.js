@@ -59,7 +59,7 @@ export const LEXICON = [
     tip: 'VOICE MODE auf MONO oder LEGATO, eventuell etwas GLIDE.' },
 ];
 
-// ---------- „Mein Nord“: was auf Chris' Nord Electro 7 installiert ist ----------
+// ---------- „Mein Nord“: was auf dem Nord Electro 7 des Nutzers installiert ist ----------
 // Quelle: Nord Sound Manager → File → Export Sound Lists (Stand 14.11.2026).
 // Bei neuen Klängen auf dem Instrument die Liste neu exportieren und hier anpassen.
 const NORD_HAS = {
@@ -154,7 +154,7 @@ const piano = ({ cat, model, timbre = 'MID', level = 7, extra = '' }) => [
 
 // ---------- Display-Werte ----------
 // Der Nord speichert den Wert, der im Display steht – nicht die Stellung des Knopfs.
-// Messwerte von Chris' Gerät (links / Mitte / rechts) stehen in docs/NORD-ELECTRO-7.md.
+// Messwerte vom Gerät des Nutzers (links / Mitte / rechts) stehen in docs/NORD-ELECTRO-7.md.
 // disp = Zielwert im Display; val = ungefähre Knopfstellung 0–10, nur für den Zeiger in der Landkarte.
 const round1 = (x) => Math.round(Math.max(0, Math.min(10, x)) * 10) / 10;
 // Zeit-Regler: links min, Mitte 1,2 s, rechts 45 s (ungleichmäßige Skala)
@@ -227,7 +227,7 @@ const song = (o) => ({
   nordSlot: o.nordSlot || NORD_SLOTS[o.id] || '',
 });
 
-// Speicherplätze auf Chris' Nord (Bank + Platz), Stand 14.11.2026 laut Programmliste aus dem
+// Speicherplätze auf dem Nord des Nutzers (Bank + Platz), Stand 14.11.2026 laut Programmliste aus dem
 // Nord Sound Manager. Nur Vorbelegung – die Plätze ändern sich, wenn vor einem Auftritt umsortiert wird.
 // Sobald es Setlisten gibt, soll die App den Platz aus der Reihenfolge ausrechnen.
 const NORD_SLOTS = {
@@ -414,8 +414,8 @@ export const SEED_SONGS = [
     ],
   }),
 
-  // ---------- Songs der Setliste „Krimikeller 2026“ (ab Version 0.1.3) ----------
-  // Grundlage: das Original des Songs + Chris' eigene Notizen aus der Setliste.
+  // ---------- Songs der Auftritts-Setliste 2026 (ab Version 0.1.3) ----------
+  // Grundlage: das Original des Songs + eigene Notizen des Nutzers aus der Setliste.
   song({
     id: 'we-will-rock-you', title: 'We Will Rock You', artist: 'Queen', tags: ['Mitsingen'],
     parts: whole('b3', 'Im Original keine Tasten. Für das Gitarrensolo am Schluss: Rock-Orgel als Unterlage.',
@@ -777,7 +777,7 @@ export const SEED_SONGS = [
     ],
   }),
   song({
-    // Reihenfolge von Chris (14.11.2026): Nena → Die Prinzen → Peter Schilling → Hubert Kah.
+    // Reihenfolge laut Nutzer (14.11.2026): Nena → Die Prinzen → Peter Schilling → Hubert Kah.
     // Ziel: im Medley möglichst wenig umbauen – ein Programm für Teil 1–3 (nur Sektionen an/aus),
     // ein zweites Programm für den Lead in Teil 4.
     id: 'ndw-medley', title: 'NDW-Medley', artist: 'Nena / Die Prinzen / Peter Schilling / Hubert Kah', key: 'Bm',
@@ -881,9 +881,9 @@ export const SEED_SONGS = [
   }),
 ];
 
-// ---------- Songs aus „Rest.chopro“ (ab Version 0.1.21) ----------
-// Grundlage: das Original des Songs + Chris' Notizen aus der Datei (Kawai-Codes, „33C Orgel“ usw.).
-// fillOnly: Diese Vorschläge füllen nur Songs, die Chris selbst importiert hat. Sie werden weder bei
+// ---------- übrige Songs des Nutzers (ab Version 0.1.21) ----------
+// Grundlage: das Original des Songs + Notizen des Nutzers aus der Datei (Kawai-Codes, „33C Orgel“ usw.).
+// fillOnly: Diese Vorschläge füllen nur Songs, die der Nutzer selbst importiert hat. Sie werden weder bei
 // einer Neuinstallation noch über „Startdaten ergänzen“ als eigene Songs angelegt.
 // Alle Werte sind ungehörte Startpunkte.
 
@@ -1152,7 +1152,7 @@ const REST_SONGS = [
     parts: whole('grand', 'Heller Flügel, rhythmisch – das Klavier treibt den Song.',
       solo('Welt retten', { timbre: 'BRIGHT', level: 7, rev: 'ROOM', mix: 2 }),
       'Hinweis: In deiner Datei steht als Interpret „Sportfreunde Stiller“ – der Song ist von Tim Bendzko. Unter „Bearbeiten“ korrigieren.') }),
-  rest({ id: 'nur-ein-stueck', title: 'Nur ein Stück', artist: 'Christian Würr', tags: ['Deutsch'],
+  rest({ id: 'nur-ein-stueck', title: 'Nur ein Stück', artist: '', tags: ['Deutsch'],
     parts: whole('grand', 'Neutraler Flügel als Ausgangspunkt – dein eigenes Stück.',
       solo('Nur ein Stueck', { timbre: 'MID', level: 7, rev: 'HALL', mix: 3 }), 'Nach deinem eigenen Geschmack anpassen.') }),
   rest({ id: 'one-moment-in-time', title: 'One Moment in Time', artist: 'Whitney Houston', tags: ['Langsam'],

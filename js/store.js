@@ -2,6 +2,7 @@
 // Übertragung PC → iPad über „Backup exportieren/importieren“.
 
 import { SEED_SONGS, SEED_VERSION } from './data.js';
+import { cleanFlow } from './flow.js';
 
 const KEY = 'soultape-stage';
 const SCHEMA = 1;
@@ -305,7 +306,7 @@ export function importBackup(text) {
   try { localStorage.setItem(PREV, snapshotNow()); } catch (e) { kept = false; }
   state.songs = d.songs;
   if (Array.isArray(d.lists)) state.lists = d.lists;   // alte Sicherungen ohne Listen lassen die Listen unberührt
-  // Sicherung einer anderen Person (z. B. Chris' Sicherung beim Kollegen): eigenes Profil und Nummernvergabe behalten
+  // Sicherung einer anderen Person (z. B. die Sicherung des Keyboarders beim Kollegen): eigenes Profil und Nummernvergabe behalten
   const mine = state.settings.profile, theirs = d.settings && d.settings.profile;
   const ownProfile = !!(mine && mine.name && theirs && theirs.name && !sameName(mine.name, theirs.name));
   // Einstellungen, die zum Gerät gehören (Handy ≠ iPad), bleiben – auch bei der eigenen Sicherung
@@ -352,6 +353,7 @@ export function exportPackage(ids, { sounds = false, from = '', role = '', textO
       uid: songUid(s), no: s.no || null,
       title: s.title, artist: s.artist || '', key: s.key || '', transpose: s.transpose || 0,
       durationSec: s.durationSec || null, bpm: s.bpm || null, beats: s.beats || null, aliases: s.aliases || [],
+      flow: cleanFlow(s.flow),
       sheet: sh ? { name: sh.name, text: textOf(sh.text) } : null,
     };
     if (sounds) o.parts = clone(s.parts || []);
@@ -443,9 +445,14 @@ function takeIdentity(s, x) {
 // Gemeinsame Eckdaten eines Songs. Weicht ein Wert beim Empfänger ab, zeigt die Vorschau das an;
 // standardmäßig wird der Wert aus dem Paket übernommen, der Empfänger kann einzelne abwählen (item.keep).
 // Tempo (bpm) und Taktart (beats = Schläge pro Takt) seit 0.1.22; ältere Pakete haben sie nicht → bleibt leer.
-export const SHARED_FIELDS = [['title', 'Titel'], ['artist', 'Interpret'], ['key', 'Tonart'], ['durationSec', 'Dauer'], ['bpm', 'Tempo'], ['beats', 'Taktart']];
+// Ablauf (flow: wer singt, Solos, Effekte) seit 0.1.25 – ein Feld aus mehreren Zeilen, verglichen als Ganzes.
+export const SHARED_FIELDS = [['title', 'Titel'], ['artist', 'Interpret'], ['key', 'Tonart'], ['durationSec', 'Dauer'], ['bpm', 'Tempo'], ['beats', 'Taktart'], ['flow', 'Ablauf']];
 const NUM_FIELDS = ['durationSec', 'bpm', 'beats'];
-const fieldVal = (f, v) => (NUM_FIELDS.includes(f) ? (+v > 0 ? Math.round(+v) : null) : (typeof v === 'string' && v.trim() ? v.trim() : null));
+const fieldVal = (f, v) => {
+  if (f === 'flow') { const c = cleanFlow(v); return c.length ? c : null; }
+  return NUM_FIELDS.includes(f) ? (+v > 0 ? Math.round(+v) : null) : (typeof v === 'string' && v.trim() ? v.trim() : null);
+};
+const sameVal = (a, b) => (a !== null && typeof a === 'object' ? JSON.stringify(a) === JSON.stringify(b) : a === b);
 
 /** Vergleicht die Eckdaten → { fill: [Feld] (bei dir leer), diffs: [{ f, label, mine, theirs }] } */
 function fieldPlan(t, x) {
@@ -453,7 +460,7 @@ function fieldPlan(t, x) {
   if (!t) return { fill, diffs };
   for (const [f, label] of SHARED_FIELDS) {
     const theirs = fieldVal(f, x[f]), mine = fieldVal(f, t[f]);
-    if (theirs === null || theirs === mine) continue;
+    if (theirs === null || sameVal(theirs, mine)) continue;
     if (mine === null) fill.push(f); else diffs.push({ f, label, mine, theirs });
   }
   return { fill, diffs };
@@ -486,7 +493,7 @@ export function applyPackage(pkg, { sounds = false } = {}) {
       s = newSong({
         title: x.title.trim(), artist: x.artist || '', key: x.key || '', transpose: +x.transpose || 0,
         durationSec: x.durationSec || null, bpm: fieldVal('bpm', x.bpm), beats: fieldVal('beats', x.beats),
-        aliases: Array.isArray(x.aliases) ? x.aliases : [], no: +x.no || null,
+        aliases: Array.isArray(x.aliases) ? x.aliases : [], no: +x.no || null, flow: fieldVal('flow', x.flow) || [],
       });
       created++;
     } else {

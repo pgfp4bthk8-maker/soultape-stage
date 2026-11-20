@@ -7,10 +7,11 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   songByNo, nextNo, setSongNo, numberAllSongs } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
-import { splitSongs, renderSheet, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
+import { splitSongs, renderSheet, sectionNames, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
+import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.24';
+export const APP_VERSION = '0.1.25';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -53,7 +54,7 @@ const ROLES = {
   drums: { name: 'Schlagzeug', show: { chords: false, nord: false, metro: true } },
   mixer: { name: 'Mischpult', show: { chords: false, nord: false, metro: false } },
 };
-const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen', metro: 'Metronom (Tempo-Leiste)' };
+const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen', metro: 'Metronom (Tempo-Leiste)', flow: 'Ablauf (wer singt, Solos, Effekte)' };
 // Schalter, die ohne ausdrückliche Wahl aus sind (alle anderen sind an)
 const SHOW_OFF = ['metro'];
 const profile = () => state.settings.profile || { name: '', role: 'keyboard' };
@@ -204,6 +205,11 @@ function viewSong(id) {
   const part = s.parts?.[ui.part];
   const sheet = activeSheet(s);
   const tr = s.transpose || 0;
+  // Ablauf: Schilder an den passenden Abschnitten; Zeilen ohne passenden Abschnitt zusätzlich als Leiste über dem Blatt
+  const flowM = shows('flow') && cleanFlow(s.flow).length ? matchFlow(s.flow, sheet ? sectionNames(sheet.text) : []) : null;
+  // Leiste: ganzer Ablauf, wenn im Blatt nichts passt (oder kein Blatt da ist), sonst nur die Zeilen ohne Platz
+  const flowBar = flowM && flowM.unmatched.length ? flowBarHtml(flowM.at.size ? flowM.unmatched : flowM.rows) : '';
+  const secExtra = flowM ? (i) => { const r = flowM.at.get(i); return r ? `<span class="flbad">${r.map(flowBadges).join('')}</span>` : ''; } : null;
 
   shell('songs', `
     <div class="songhead">
@@ -243,7 +249,8 @@ function viewSong(id) {
       ${metroOn(s) && !metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent }) : ''}
     </div>
     ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
-    <div class="sheet${ui.mark ? ' marking' : (shows('chords') ? '' : ' nochords')}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key }) :
+    ${flowBar}
+    <div class="sheet${ui.mark ? ' marking' : (shows('chords') ? '' : ' nochords')}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key, secExtra }) :
       `<p class="muted" style="font-size:17px">Noch kein Leadsheet. <span class="prep-only">Unter <a href="#/import">Leadsheets importieren</a> kannst du deine ChordPro-Datei einlesen.</span></p>`}</div>
     <div class="songnav">
       ${prev ? `<a class="btn" href="#/song/${prev.id}"${navPos(prev)}>◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
@@ -433,6 +440,62 @@ function updateGuide(part) {
 }
 
 // ---------- Song bearbeiten ----------
+// ---------- Ablauf eines Songs (wer singt, Solos, Effekte) bearbeiten ----------
+const FLOW_HINTS = {
+  part: ['Intro', 'Strophe 1', 'Strophe 2', 'Strophe 3', 'Pre-Chorus', 'Refrain', 'Bridge', 'Solo', 'Outro'],
+  voc: [],   // keine echten Namen im Code (öffentliches Repo) – Vorschläge kommen aus Profil und Songs
+  solo: ['Gitarre', 'Keys', 'Bass', 'Schlagzeug'],
+  fx: ['Hall', 'Delay'],
+};
+const FLOW_COLS = [['part', 'Teil'], ['voc', 'Gesang'], ['solo', 'Solo'], ['fx', 'Effekt / Hinweis']];
+
+function flowEditHtml(s, sheet) {
+  const rows = Array.isArray(s.flow) ? s.flow : [];
+  // Vorschläge: feste Namen plus alles, was in anderen Songs schon eingetragen ist
+  const used = state.songs.flatMap((x) => cleanFlow(x.flow));
+  const lists = FLOW_COLS.map(([f]) => {
+    const own = f === 'voc' && profile().name ? [profile().name.trim()] : [];   // eigener Name aus dem Profil
+    const vals = [...new Set([...FLOW_HINTS[f], ...own, ...used.map((r) => r[f]).filter(Boolean)])];
+    return `<datalist id="fl-${f}">${vals.map((v) => `<option value="${esc(v)}">`).join('')}</datalist>`;
+  }).join('');
+  return `
+    <h2>Ablauf</h2>
+    <p class="small muted" style="margin-top:0">Wer singt wo, wo sind Solos, was braucht der Mischer. Gilt für alle Blätter dieses Songs und geht im Band-Paket mit. In der Song-Ansicht erscheint es klein an den passenden Abschnitten (z. B. „Strophe 2“ auch bei „Verse 2“), sonst als Leiste über dem Blatt.</p>
+    <div class="card stack">
+      ${rows.length ? `<div class="flowed flowhead small muted">${FLOW_COLS.map(([, l]) => `<span>${l}</span>`).join('')}<span></span></div>` : ''}
+      ${rows.map((r, i) => `<div class="flowed">${FLOW_COLS.map(([f, l]) => `<input type="text" data-fl="${i}" data-ff="${f}" list="fl-${f}" value="${esc(r[f] || '')}" placeholder="${f === 'fx' ? 'Effekt' : l}" aria-label="${l}">`).join('')}
+        <button class="btn ghost" data-delflow="${i}" title="Zeile entfernen">✕</button></div>`).join('')}
+      ${lists}
+      <div class="row"><button class="btn" id="addFlow">+ Zeile</button>
+        ${sheet && sectionNames(sheet.text).length ? '<button class="btn" id="flowFromSheet">Abschnitte aus dem Blatt übernehmen</button>' : ''}</div>
+    </div>`;
+}
+
+function bindFlowEdit(s, sheet, redraw) {
+  app.querySelectorAll('[data-fl]').forEach((el) => el.onchange = () => {
+    const r = s.flow[+el.dataset.fl];
+    if (r) { r[el.dataset.ff] = el.value.trim(); persist(); }
+  });
+  app.querySelectorAll('[data-delflow]').forEach((b) => b.onclick = () => { s.flow.splice(+b.dataset.delflow, 1); persist(); redraw(); });
+  $('#addFlow').onclick = () => { s.flow = Array.isArray(s.flow) ? s.flow : []; s.flow.push({ part: '', voc: '', solo: '', fx: '' }); persist(); redraw(); };
+  const fs = $('#flowFromSheet');
+  if (fs) fs.onclick = () => {
+    s.flow = Array.isArray(s.flow) ? s.flow : [];
+    // gleiche Bedeutung zählt als vorhanden: „Verse 1“ = „Strophe 1“, „Chorus“ = „Refrain“
+    const keyOf = (t) => { const k = sectionKey(t); return k.kind ? `${k.kind}:${k.n || ''}` : `=${k.plain}`; };
+    const have = new Set(s.flow.map((r) => keyOf(r.part)));
+    let n = 0;
+    for (const name of sectionNames(sheet.text)) {
+      const k = keyOf(name);
+      if (have.has(k)) continue;
+      have.add(k);
+      s.flow.push({ part: name.trim(), voc: '', solo: '', fx: '' });
+      n++;
+    }
+    persist(); toast(n ? `${n} Abschnitte übernommen` : 'Alle Abschnitte sind schon da'); redraw();
+  };
+}
+
 function viewEdit(id) {
   const s = getSong(id);
   if (!s) { location.hash = '#/'; return; }
@@ -467,6 +530,8 @@ function viewEdit(id) {
         <input type="text" id="f-newtag" placeholder="+ eigenes Schlagwort" style="width:200px"></div></div>
       <label class="f"><span>Notizen</span><input type="text" id="f-notes" value="${esc(s.notes)}"></label>
     </div>
+
+    ${flowEditHtml(s, sheet)}
 
     <h2>Sounds</h2>
     ${(s.parts || []).map((p, pi) => `
@@ -538,6 +603,7 @@ function viewEdit(id) {
     s.tags = s.tags.includes(t) ? s.tags.filter((x) => x !== t) : [...s.tags, t];
     c.classList.toggle('on'); persist();
   });
+  bindFlowEdit(s, sheet, () => keepY(() => viewEdit(id), true));
   app.querySelectorAll('[data-f]').forEach((el) => el.onchange = () => { s.parts[+el.dataset.p][el.dataset.f] = el.value; persist(); });
   app.querySelectorAll('[data-sf]').forEach((el) => el.onchange = () => {
     const x = s.parts[+el.dataset.p].steps[+el.dataset.s];
@@ -846,7 +912,7 @@ function viewPackage() {
     if (p.nothing) out.push('<span class="badge warn">Nichts zu tun</span>');
     return out.join('');
   };
-  const shown = (f, v) => esc(f === 'durationSec' ? fmtDur(v) : f === 'bpm' ? `${v} BPM` : f === 'beats' ? `${v} pro Takt` : v);
+  const shown = (f, v) => esc(f === 'flow' ? flowText(v) : f === 'durationSec' ? fmtDur(v) : f === 'bpm' ? `${v} BPM` : f === 'beats' ? `${v} pro Takt` : v);
   const diffRows = (it, i, p) => p.diffs.map((d) => `
     <label class="row small" style="flex-wrap:nowrap"><input type="checkbox" data-diff="${i}" data-f="${d.f}" ${it.keep[d.f] ? '' : 'checked'} style="width:20px;height:20px;flex:none">
       <span><b>${d.label}</b> ändern: bei dir „${shown(d.f, d.mine)}“ → aus dem Paket „${shown(d.f, d.theirs)}“${it.keep[d.f] ? ' <span class="muted">(deiner bleibt)</span>' : ''}</span></label>`).join('');
@@ -1190,7 +1256,7 @@ function viewSettings() {
     <h2 style="margin-top:0">Mein Profil</h2>
     <div class="card stack">
       <p class="small muted" style="margin:0">Wer nutzt die App auf diesem Gerät? Die Rolle stellt ein, was angezeigt wird. Darunter kannst du jeden Punkt einzeln an- und ausschalten.</p>
-      <label class="f"><span>Name</span><input type="text" id="set-name" value="${esc(profile().name)}" placeholder="z. B. Chris"></label>
+      <label class="f"><span>Name</span><input type="text" id="set-name" value="${esc(profile().name)}" placeholder="Vorname"></label>
       <div><b>Rolle</b><div class="row" style="margin-top:6px">
         ${Object.entries(ROLES).map(([k, r]) => `<span class="chip ${profile().role === k ? 'on' : ''}" data-role="${k}">${r.name}</span>`).join('')}</div></div>
       <div><b>Anzeigen</b><div class="row" style="margin-top:6px">

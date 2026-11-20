@@ -11,7 +11,7 @@ const FLAT_MINOR = new Set([0, 2, 3, 5, 7, 10]);     // Cm Dm Ebm Fm Gm Bbm
 const CHORD_RE = /^([A-H])(#|b)?([^/\s]*)(?:\/([A-H])(#|b)?)?$/;
 const SUFFIX_OK = /^(m|min|maj|M|dim|aug|sus|add|no|°|ø|\+|-|\(|\)|,|#|b|\d)*$/;
 
-// Chris' eigene Kürzel für Umkehrungen (am 08.11.2026 gemeinsam geklärt):
+// Eigene Kürzel des Nutzers für Umkehrungen (am 08.11.2026 gemeinsam geklärt):
 //   C-2 (auch „C 2“)  = 2. Umkehrung, Quinte unten  → C/G
 //   D1  (auch „D-1“)  = 1. Umkehrung, Terz unten    → D/F#   (bei Moll kleine Terz: Am1 → Am/C)
 //   G 0 (auch „G0“)   = Grundstellung               → G
@@ -149,7 +149,7 @@ const INSTR = '(?:guitars?|gitarren?|git|bass|drums|schlagzeug|keys|keyboards?|p
 const INSTR_LIST = `${INSTR}(?:\\s*(?:&|\\+|/|,|und|and)\\s*${INSTR})*`;
 const HINT_RE = new RegExp(`^(?:(?:nur|only)\\s+${INSTR_LIST}|${INSTR_LIST}\\s+(?:in|out|only|solo|raus|rein|allein|dazu|ab|weg|einsatz|stop|tacet))\\s*!*$`, 'i');
 const normText = (s) => (s || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
-// Klammer-Inhalt bis 4 Wörter = Spielhinweis wie „(Lauf)“ oder „(bis Este schreit)“;
+// Klammer-Inhalt bis 4 Wörter = Spielhinweis wie „(Lauf)“ oder „(bis Gesang einsetzt)“;
 // länger = Backing-Vocals oder gesprochener Einwurf
 const isHint = (t) => t.trim().split(/\s+/).length <= 4;
 
@@ -438,7 +438,7 @@ function chordHtml(raw, opt) {
   }
 }
 
-// Ein Wort samt umgebenden Leerzeichen; Klammer-Hinweise wie „(bis Este schreit)“ bleiben zusammen
+// Ein Wort samt umgebenden Leerzeichen; Klammer-Hinweise wie „(bis Gesang einsetzt)“ bleiben zusammen
 const WORD_RE = /\s*(?:\([^)]{0,40}\)|[^\s(]|\()+\s*/g;
 
 function textHtml(t) {
@@ -448,10 +448,11 @@ function textHtml(t) {
 }
 
 /** Rendert einen Songtext als HTML für die Bühnenansicht. */
-export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) {
+export function renderSheet(raw, { steps = 0, notation = 'de', key = '', secExtra = null } = {}) {
   const opt = { steps, notation, flats: prefersFlats(key, steps) };
   const rows = parseSheet(raw);
   const html = [];
+  let secNo = 0;   // Zähler der Abschnitte – secExtra(i) hängt z. B. die Ablauf-Schilder an (siehe sectionNames)
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const ch = r.chorus ? ' chorus' : '';
@@ -474,7 +475,12 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
         break;
       }
       case 'empty': html.push('<div class="ln empty"></div>'); break;
-      case 'section': html.push(`<div class="ln sec${r.chorus ? ' sec-chorus' : ''}">${r.repeat ? '↻ ' : ''}${esc(r.text)}</div>`); break;
+      case 'section': {
+        const extra = secExtra ? secExtra(secNo) || '' : '';
+        secNo++;
+        html.push(`<div class="ln sec${r.chorus ? ' sec-chorus' : ''}">${r.repeat ? '↻ ' : ''}${esc(r.text)}${extra}</div>`);
+        break;
+      }
       case 'medley': html.push(`<div class="ln medley">${esc(r.text)}</div>`); break;
       case 'trigger': html.push(`<div class="ln trig${ch}"><span>${esc(r.text)}</span></div>`); break;
       case 'vocal': html.push(`<div class="ln vocal${ch}">(${esc(r.text)})</div>`); break;
@@ -519,6 +525,11 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
     if (html.length > before && r.src !== undefined) html[before] = html[before].replace(/^<(div|pre) /, `<$1 data-src="${r.src}" data-n="${r.span || 1}" `);
   }
   return html.join('');
+}
+
+/** Abschnittsnamen eines Blatts in Reihenfolge – dieselbe Zählung wie secExtra in renderSheet. */
+export function sectionNames(raw) {
+  return parseSheet(raw).filter((r) => r.type === 'section').map((r) => r.text);
 }
 
 /** Zählt Dinge, die beim Import auffallen (für die Vorschau). */

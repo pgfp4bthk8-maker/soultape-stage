@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.1.25 – 20.11.2026
+- **Ablauf pro Song** (Wunsch des Mischers): Wer singt wo, wo sind die Solos und welche Effekte braucht das Pult. Eingegeben wird er als kleine Tabelle unter „Bearbeiten“ → „Ablauf“ (Spalten Teil, Gesang, Solo, Effekt/Hinweis). Beim Tippen schlägt die App Instrumente, deinen Profilnamen und alle Namen vor, die du schon in anderen Songs eingetragen hast.
+- Knopf **„Abschnitte aus dem Blatt übernehmen“** füllt die Spalte „Teil“ mit den Abschnitten des aktiven Blatts – dann nur noch Sänger und Solos dazuschreiben.
+- **In der Song-Ansicht** steht der Ablauf als kleine Schilder direkt an den Abschnitten: 🎤 Sänger (lila), ★ Solo (gold), ◎ Effekt (grün). Die App erkennt gleiche Abschnitte auch bei anderer Schreibweise: „Strophe 2“ passt zu „Verse 2“ und „(2.Str.)“, „Refrain“ zu „Chorus“. Steht im Ablauf „Refrain 3“, gilt das nur für den dritten Refrain im Blatt.
+- Passt eine Zeile zu keinem Abschnitt (oder hat das Blatt gar keine Abschnitte), erscheint sie als **Leiste über dem Blatt**.
+- Der Ablauf gilt für alle Blätter des Songs und **reist im Band-Paket mit**. Beim Einspielen wird er wie Tonart und Dauer abgeglichen: fehlt er, wird er ergänzt; weicht er ab, zeigt die Vorschau das an und du kannst deinen behalten.
+- Anzeigen lässt er sich unter Einstellungen → Mein Profil → Anzeigen („Ablauf“), standardmäßig für alle an.
+
 ## 0.1.24 – 19.11.2026
 - **Sicherung zwischen eigenen Geräten** (z. B. vom Handy aufs iPad): Einstellungen, die zum Gerät gehören, bleiben jetzt beim Einspielen erhalten: Ansicht (Handy/Tablet), Schriftgröße, Blätter-Tempo, Metronom und „Songnummern vergeben“. Bisher hat eine Sicherung vom Handy diese Werte aufs iPad übertragen – im schlimmsten Fall vergab das iPad danach keine Songnummern mehr.
 - Songs, Setlisten und die übrigen Einstellungen (Profil, Anzeigen, H/B-Schreibweise, Nord-Lautstärke) kommen wie bisher aus der Sicherung.
@@ -23,7 +31,7 @@
 - **Neue Song-Felder Tempo (BPM) und Taktart** unter „Bearbeiten“. Beim ChordPro-Import werden `{tempo: …}` und `{time: …}` übernommen, beim ChordPro-Export wieder geschrieben. Tempo und Taktart reisen im Paket und Band-Paket mit und werden beim Einspielen wie Tonart und Dauer abgeglichen.
 
 ## 0.1.21 – 17.11.2026
-- **Soundvorschläge für 87 weitere Songs** (die Songs aus „Rest.chopro“, z. B. Bohemian Rhapsody, Hold the Line, Piano Man, Jump, Titanium): jeweils eine Kurzbeschreibung und eine Schritt-Anleitung für den Nord. Grundlage sind das Original und deine Notizen aus der Datei (Kawai-Codes, „33C Orgel 70 %“, „Strings linke Hand“, „HiQBass −1 Okt“). Bei *Bed of Roses* (P 15) und *No Roots* (P 21) ist dein vorhandener Speicherplatz eingetragen.
+- **Soundvorschläge für 87 weitere Songs** (die übrigen Songs aus deiner Songdatei, z. B. Bohemian Rhapsody, Hold the Line, Piano Man, Jump, Titanium): jeweils eine Kurzbeschreibung und eine Schritt-Anleitung für den Nord. Grundlage sind das Original und deine Notizen aus der Datei (Kawai-Codes, „33C Orgel 70 %“, „Strings linke Hand“, „HiQBass −1 Okt“). Bei *Bed of Roses* (P 15) und *No Roots* (P 21) ist dein vorhandener Speicherplatz eingetragen.
 - Die Vorschläge kommen beim ersten Start still zu den Songs, die noch keinen Sound haben. Eigene Eintragungen bleiben unberührt.
 - Diese Vorschläge werden nur bei Songs eingetragen, die du selbst importiert hast – und nur bei genau passendem Titel. Bei einer Neuinstallation oder über „Startdaten ergänzen“ werden dafür keine eigenen Songs angelegt.
 - Alle Werte sind ungehörte Startpunkte und müssen am Instrument geprüft werden.
@@ -126,7 +134,7 @@ Erster Schritt der Setlisten.
 - Bereits eingetragene Soundvorschläge werden beim ersten Start still aktualisiert – aber nur, wenn du sie nicht selbst geändert hast.
 
 ## 0.1.3 – 14.11.2026
-- Soundvorschläge für alle 37 Songs der Setliste „Krimikeller 2026“ (z. B. Californication, Narcotic, The Final Countdown) – mit Kurzbeschreibung, Schritt-Anleitung und Spieltipp. Grundlage sind das Original und die eigenen Notizen aus der Setliste. Wo das Original keine Tasten hat, steht das dabei.
+- Soundvorschläge für alle 37 Songs der Auftritts-Setliste (z. B. Californication, Narcotic, The Final Countdown) – mit Kurzbeschreibung, Schritt-Anleitung und Spieltipp. Grundlage sind das Original und die eigenen Notizen aus der Setliste. Wo das Original keine Tasten hat, steht das dabei.
 - Die Vorschläge kommen auch bei importierten Songs an: Die App erkennt sie am Titel. Beim ersten Start nach dem Update werden sie still nachgetragen – nur bei Songs, die noch keinen Soundvorschlag haben. Eigene Eintragungen und Leadsheets bleiben unberührt.
 - Einstellungen → Startdaten: „Fehlende Start-Songs ergänzen“ trägt jetzt auch fehlende Soundvorschläge nach.
 - Offen: Das NDW-Medley hat nur einen Platzhalter, bis die enthaltenen Songs feststehen.
@@ -135,16 +143,16 @@ Erster Schritt der Setlisten.
 - Fehler behoben: Auf dem iPad waren `.chopro`-Dateien beim Import aus iCloud ausgegraut. iOS kennt diese Endung nicht als Dateityp; das Auswahlfeld filtert deshalb nicht mehr nach Endungen. Wird versehentlich eine Nicht-Textdatei (z. B. PDF) gewählt, kommt ein Hinweis.
 
 ## 0.1.1 – 08.11.2026
-Erster Test mit der echten Probe-Datei („01 Stücke Proben.chopro“, 10 Songs).
+Erster Test mit der echten Probe-Datei (10 Songs).
 - Lange Textzeilen brechen jetzt um, statt rechts aus dem Bildschirm zu laufen; Wörter mit Akkord in der Mitte („trou[D5]ble“) bleiben zusammen
 - Refrain-Balken auch bei Überschriften wie „Chorus“, „CHORUS:“, „(Ref)“ – nicht nur bei `{soc}`; fehlendes oder überzähliges `{eoc}` wird toleriert; „Pre-Chorus“ zählt nicht als Refrain
 - „... Chorus ...“ wird als Wiederholungs-Hinweis (↻ Chorus) angezeigt
 - Besetzungs-Hinweise ohne Klammern wie „Bass & Drums In“ oder „Guitar Only“ werden orange markiert
-- Klammern mit mehr als 4 Wörtern (Backing-Vocals, gesprochene Einwürfe) erscheinen grau-kursiv statt orange; kurze Klammern wie „(Lauf)“ oder „(bis Este schreit)“ bleiben orange Spielhinweise
+- Klammern mit mehr als 4 Wörtern (Backing-Vocals, gesprochene Einwürfe) erscheinen grau-kursiv statt orange; kurze Klammern wie „(Lauf)“ oder „(bis Gesang einsetzt)“ bleiben orange Spielhinweise
 - Kommentare, die nur Titel und Interpret wiederholen, werden ausgeblendet
 - Eigene Umkehrungs-Kürzel werden verstanden und als Slash-Akkord angezeigt (auch transponiert): `C-2` = 2. Umkehrung → C/G, `D1` = 1. Umkehrung → D/F#, `G 0` = Grundstellung → G. `D2`/`A2` ohne Strich bleiben add2.
 - Fehler behoben: Gab es schon `{subtitle}`, wurde die erste Textzeile fälschlich als Interpret verschluckt
-- Getestet auch mit „Krimikeller 2026.chopro“ (OnSong-Setliste, 40 Einträge, viele Internet-Vorlagen):
+- Getestet auch mit einer echten Auftritts-Setliste (OnSong, 40 Einträge, viele Internet-Vorlagen):
   - Kleinbuchstaben = Moll (`[a]` → Am, `[bm7]` → Hm7) und deutsche Namen (`Cism`, `Gis`, `Es`, `D/Fis`)
   - Gitarren-Tabulatur `{sot}`…`{eot}` in Festbreiten-Schrift, bei Bedarf nur im Block seitlich verschiebbar
   - Abschnitte in eckigen Klammern (`[Intro]`, `[Chorus 2x]`), Text-Hinweise (`[guitar stops]`)
