@@ -414,7 +414,7 @@ export const SEED_SONGS = [
     ],
   }),
 
-  // ---------- Songs der Auftritts-Setliste (ab Version 0.1.3) ----------
+  // ---------- Songs der Auftritts-Setliste 2026 (ab Version 0.1.3) ----------
   // Grundlage: das Original des Songs + eigene Notizen des Nutzers aus der Setliste.
   song({
     id: 'we-will-rock-you', title: 'We Will Rock You', artist: 'Queen', tags: ['Mitsingen'],
@@ -777,7 +777,7 @@ export const SEED_SONGS = [
     ],
   }),
   song({
-    // Reihenfolge vom Nutzer (14.11.2026): Nena → Die Prinzen → Peter Schilling → Hubert Kah.
+    // Reihenfolge laut Nutzer (14.11.2026): Nena → Die Prinzen → Peter Schilling → Hubert Kah.
     // Ziel: im Medley möglichst wenig umbauen – ein Programm für Teil 1–3 (nur Sektionen an/aus),
     // ein zweites Programm für den Lead in Teil 4.
     id: 'ndw-medley', title: 'NDW-Medley', artist: 'Nena / Die Prinzen / Peter Schilling / Hubert Kah', key: 'Bm',
@@ -881,7 +881,7 @@ export const SEED_SONGS = [
   }),
 ];
 
-// ---------- Vorschläge für die übrigen Songs (ab Version 0.1.21) ----------
+// ---------- übrige Songs des Nutzers (ab Version 0.1.21) ----------
 // Grundlage: das Original des Songs + Notizen des Nutzers aus der Datei (Kawai-Codes, „33C Orgel“ usw.).
 // fillOnly: Diese Vorschläge füllen nur Songs, die der Nutzer selbst importiert hat. Sie werden weder bei
 // einer Neuinstallation noch über „Startdaten ergänzen“ als eigene Songs angelegt.

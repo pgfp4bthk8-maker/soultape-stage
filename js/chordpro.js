@@ -448,10 +448,11 @@ function textHtml(t) {
 }
 
 /** Rendert einen Songtext als HTML für die Bühnenansicht. */
-export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) {
+export function renderSheet(raw, { steps = 0, notation = 'de', key = '', secExtra = null } = {}) {
   const opt = { steps, notation, flats: prefersFlats(key, steps) };
   const rows = parseSheet(raw);
   const html = [];
+  let secNo = 0;   // Zähler der Abschnitte – secExtra(i) hängt z. B. die Ablauf-Schilder an (siehe sectionNames)
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const ch = r.chorus ? ' chorus' : '';
@@ -474,7 +475,12 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
         break;
       }
       case 'empty': html.push('<div class="ln empty"></div>'); break;
-      case 'section': html.push(`<div class="ln sec${r.chorus ? ' sec-chorus' : ''}">${r.repeat ? '↻ ' : ''}${esc(r.text)}</div>`); break;
+      case 'section': {
+        const extra = secExtra ? secExtra(secNo) || '' : '';
+        secNo++;
+        html.push(`<div class="ln sec${r.chorus ? ' sec-chorus' : ''}">${r.repeat ? '↻ ' : ''}${esc(r.text)}${extra}</div>`);
+        break;
+      }
       case 'medley': html.push(`<div class="ln medley">${esc(r.text)}</div>`); break;
       case 'trigger': html.push(`<div class="ln trig${ch}"><span>${esc(r.text)}</span></div>`); break;
       case 'vocal': html.push(`<div class="ln vocal${ch}">(${esc(r.text)})</div>`); break;
@@ -519,6 +525,11 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '' } = {}) 
     if (html.length > before && r.src !== undefined) html[before] = html[before].replace(/^<(div|pre) /, `<$1 data-src="${r.src}" data-n="${r.span || 1}" `);
   }
   return html.join('');
+}
+
+/** Abschnittsnamen eines Blatts in Reihenfolge – dieselbe Zählung wie secExtra in renderSheet. */
+export function sectionNames(raw) {
+  return parseSheet(raw).filter((r) => r.type === 'section').map((r) => r.text);
 }
 
 /** Zählt Dinge, die beim Import auffallen (für die Vorschau). */

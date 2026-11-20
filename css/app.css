@@ -379,3 +379,27 @@ body.phone .lrow .lt .t { white-space: normal; font-size: 17px; line-height: 1.2
 body.phone.stage .lrow .lt .t { font-size: 20px; }
 body.phone .lrow .meta { flex-direction: column; align-items: flex-end; gap: 2px; }
 body.phone .lrow .ed [data-up], body.phone .lrow .ed [data-down] { display: none; }
+
+/* ---------- Ablauf: wer singt, Solos, Effekte (seit 0.1.25) ---------- */
+:root { --fl-voc: #b9a8ff; --fl-voc-bg: #2a2342; --fl-solo: #ffd9a0; --fl-solo-bg: #3d2b12; --fl-fx: #8fe3c8; --fl-fx-bg: #12352b; }
+.fl {
+  display: inline-block; font-size: .72em; font-weight: 600; line-height: 1.3; vertical-align: .15em;
+  padding: .1em .55em; border-radius: 6px; margin-left: .45em; white-space: nowrap;
+}
+.fl-voc { color: var(--fl-voc); background: var(--fl-voc-bg); }
+.fl-solo { color: var(--fl-solo); background: var(--fl-solo-bg); }
+.fl-fx { color: var(--fl-fx); background: var(--fl-fx-bg); }
+.flowbar {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); font-size: 16px;
+}
+.flowbar .flitem { white-space: nowrap; }
+.flowbar .flitem b { color: var(--section); font-size: 14px; }
+.flowbar .fl { font-size: 13px; margin-left: .35em; }
+.flowed { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr 1.2fr 44px; gap: 8px; align-items: center; }
+.flowed input { min-width: 0; }
+.flowhead span { padding-left: 4px; }
+body.phone .flowed { grid-template-columns: 1fr 1fr 44px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+body.phone .flowed > button { grid-column: 3; grid-row: 1; }
+body.phone .flowhead { display: none; }
+body.phone .flowbar { font-size: 14px; gap: 4px 10px; }

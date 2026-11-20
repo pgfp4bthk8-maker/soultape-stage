@@ -47,7 +47,7 @@ In der App: Schritte mit Zeit-, Frequenz- oder dB-Wert tragen das Feld `disp` (D
 
 ## Lautstärke (mit dem Nutzer am 14.11.2026 besprochen)
 
-- **MASTER LEVEL** wird nicht im Programm gespeichert; es gilt immer die Knopfstellung (global für alle Sounds). Der Nutzer lässt ihn auf einer festen, markierten Stellung; der Mischer am Wing pegelt einmal auf einen Referenz-Sound ein.
+- **MASTER LEVEL** wird nicht im Programm gespeichert; es gilt immer die Knopfstellung (global für alle Sounds). Der Keyboarder lässt ihn auf einer festen, markierten Stellung; der Mischer am Wing pegelt einmal auf einen Referenz-Sound ein.
 - Die Lautstärke pro Song wird über die **LEVEL-Regler der Sektionen** (Piano, Orgel, Synth) eingestellt – die werden gespeichert. Gleiche dB-Werte klingen je nach Klang unterschiedlich laut, deshalb jedes Programm vor dem Speichern mit dem Referenz-Sound vergleichen.
 - In der App: `settings.nordMaster`, `settings.nordRef` (Freitext) und pro Song `levelOk` (Haken „abgeglichen“).
 

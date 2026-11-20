@@ -1,6 +1,6 @@
 # Anforderungsdokument – Keyboard-Sound- und Bühnen-App
 
-Version 0.2 – Entwurf zur Prüfung durch den Nutzer (ergänzt um Songdatei, Bedienfeld-Landkarten, Import/Export und Setlisten) Stand: 08.11.2026
+Version 0.2 – Entwurf zur Prüfung durch den Hauptnutzer (ergänzt um Songdatei, Bedienfeld-Landkarten, Import/Export und Setlisten) Stand: 08.11.2026
 
 ## 1. Ziel der App
 
@@ -19,9 +19,9 @@ Kernproblem heute: Das Einstellen der Sounds im Proberaum dauert zu lange, und d
 
 ### 2.2 Band
 
-- Schlagzeug, E-Bass, Lead-Gitarre, Rhythmusgitarre (Rhythmusgitarre)
-- Gesang: Sängerin A (Deutsch/Englisch) und Sängerin B
-- Rhythmusgitarre wechselt bei komplexen Keyboard-Parts ans Keyboard; Keyboard und Rhythmusgitarre tauschen die Instrumente flexibel.
+- Schlagzeug, E-Bass, Lead-Gitarre, Rhythmusgitarre (wechselt teils ans Keyboard, siehe unten)
+- Gesang: zwei Leadstimmen (Deutsch/Englisch)
+- Die Person an der Rhythmusgitarre wechselt bei komplexen Keyboard-Parts ans Keyboard; Keyboard und Rhythmusgitarre tauschen die Instrumente flexibel.
 - Eigener Tontechniker. Mischpult Behringer Wing, In-Ear-Monitoring für alle.
 - Repertoire: Rock und Pop von den 80ern bis heute, gelegentlich Funk.
 
@@ -66,7 +66,7 @@ Kernproblem heute: Das Einstellen der Sounds im Proberaum dauert zu lange, und d
 - Song anlegen mit Titel, Interpret, Tonart und Notizen
 - Verknüpfung mit dem Programmnamen auf dem Nord Electro 7
 - Pro Song beliebig viele **Song-Teile mit eigenem Sound** (z. B. Strophe, Refrain, Solo). Zum Start reicht meist ein Sound pro Song.
-- Pro Song bzw. Song-Teil optional die Zuordnung von Instrument (Nord oder Kawai) und Spieler (Keyboarder oder Rhythmusgitarre), ohne feste Vorgabe
+- Pro Song bzw. Song-Teil optional die Zuordnung von Instrument (Nord oder Kawai) und Spieler (Keyboarder oder Person an der Rhythmusgitarre), ohne feste Vorgabe
 
 ### 5.2 Soundvorschläge
 
@@ -124,7 +124,7 @@ Weitere Anforderungen:
 - Akkorde stehen über den passenden Silben.
 - Abschnitte wie Intro, Strophe, Chorus, Bridge und Outro werden farbig hervorgehoben.
 - **KI-Import:** Unformatierter Text mit Akkorden wird eingefügt und automatisch in sauberes ChordPro umgewandelt.
-- **Transponieren** in Halbtonschritten, die gewählte Tonart wird pro Song gespeichert (z. B. passend für Sängerin A oder Sängerin B).
+- **Transponieren** in Halbtonschritten, die gewählte Tonart wird pro Song gespeichert (z. B. passend für die jeweilige Leadstimme).
 - **Akkordschreibweise:** standardmäßig deutsch mit H, umschaltbar auf englisch mit B
 - Bühnenansicht nach dem Vorbild von OnSong: dunkler Hintergrund, Akkorde und Abschnitte farbig, Schriftgröße einstellbar
 - Songtexte werden vom Nutzer selbst eingepflegt.
@@ -166,7 +166,7 @@ Weitere Anforderungen:
 - Reihenfolge per Ziehen ändern. Ein Song kann in mehreren Setlisten vorkommen.
 - Bis zu vier Sets pro Auftritt mit Pausen dazwischen. Auf der Bühne wird das aktuelle Set angezeigt.
 - Spieldauer pro Song hinterlegen. Die App berechnet die Dauer pro Set und für den ganzen Auftritt.
-- **Merkmale pro Song:** Sänger (Sängerin A, Sängerin B, Keyboarder), Tempo und Stimmung, Besetzung (wer an welchem Instrument), Gitarrenwechsel, Pianowechsel, Sängerwechsel
+- **Merkmale pro Song:** Sänger, Tempo und Stimmung, Besetzung (wer an welchem Instrument), Gitarrenwechsel, Pianowechsel, Sängerwechsel
 - **Schlagworte pro Song**, mehrere gleichzeitig möglich. Feste Liste: Opener, Abschluss, Zugabe, Mitsingen, Tanzflächenfüller, Ballade, Langsam, Schnell, Party, Hintergrund, Deutsch. Eigene Schlagworte können ergänzt werden.
 - **KI-Vorschlag für Setlisten** (Vorbereitungsmodus): Eingabe des Kontexts (z. B. „Hochzeit, drei Sets à 45 Minuten, erst ruhig, dann Party“). Die App schlägt eine Reihenfolge vor und bildet dabei Blöcke nach Stimmung und nach Wechseln, damit möglichst wenig umgebaut werden muss. Nötige Wechsel werden im Ablauf angezeigt.
 - Der Vorschlag kann danach frei angepasst werden.
@@ -181,7 +181,7 @@ Weitere Anforderungen:
 - **Bandsynchronisation:** Setlisten und Leadsheets auf mehreren Tablets
 - **Referenzaufnahmen** pro Song zum Üben
 - **Hörbeispiele** im Sound-Lexikon
-- Optional: Vorschläge für das Kawai bzw. für die Parts der Rhythmusgitarre
+- Optional: Vorschläge für das Kawai bzw. für die Keyboard-Parts der Person an der Rhythmusgitarre
 
 ## 9. Offene Punkte
 

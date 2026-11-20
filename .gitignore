@@ -5,3 +5,7 @@ soultape-backup-*.json
 soultape-paket-*.json
 .DS_Store
 Thumbs.db
+
+# Private Notizen für Claude Code (Namen, Pfade, Links) – nie hochladen
+CLAUDE.local.md
+*.local.md
