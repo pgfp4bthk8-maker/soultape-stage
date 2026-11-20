@@ -7,11 +7,11 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   songByNo, nextNo, setSongNo, numberAllSongs } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
-import { splitSongs, renderSheet, sectionNames, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
+import { splitSongs, renderSheet, sectionNames, tidyLines, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
 import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.27';
+export const APP_VERSION = '0.1.28';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -580,6 +580,7 @@ function viewEdit(id) {
     </div>
     <div id="sheetEditor"></div>
     <div class="row" style="margin-top:10px">
+      ${sheet ? '<button class="btn" id="tidySheet" title="Wiederholte Akkordfolgen in eigene Zeilen, Leerzeile vor jedem Abschnitt">↵ Zeilen ordnen</button>' : ''}
       <button class="btn" id="pasteSheet">Leadsheet einfügen</button>
       ${sheet ? '<button class="btn" id="exportSheet">Als ChordPro exportieren</button>' : ''}
     </div>
@@ -671,9 +672,39 @@ function viewEdit(id) {
     const v = s.sheets.find((x) => x.id === b.dataset.editsheet);
     openEditor(v.text, `Neue Version auf Basis von „${v.name}“`);
   });
+  const td = $('#tidySheet');
+  if (td) td.onclick = () => openTidy(s, sheet, () => viewEdit(id));
   $('#pasteSheet').onclick = () => openEditor('', 'Leadsheet einfügen (ChordPro oder Text mit Akkorden)');
   const ex = $('#exportSheet');
   if (ex) ex.onclick = () => download(`${fileName(s.title)}.chopro`, toChordPro(s, sheet), 'text/plain');
+}
+
+/**
+ * Vorschau „Zeilen ordnen“: links das aktive Blatt, rechts das Ergebnis (geänderte Zeilen markiert).
+ * Speichern legt eine neue Fassung an und macht sie aktiv – das Original bleibt unverändert.
+ */
+function openTidy(s, sheet, done) {
+  const box = $('#sheetEditor');
+  const r = tidyLines(sheet.text);
+  if (!r.blanks && !r.splits) { box.innerHTML = ''; toast('Hier gibt es nichts zu ordnen.'); return; }
+  const opt = { steps: s.transpose || 0, notation: notation(), key: s.key };
+  const what = [r.splits ? `${r.splits} Zeile${r.splits > 1 ? 'n' : ''} geteilt` : '',
+    r.blanks ? `${r.blanks} Leerzeile${r.blanks > 1 ? 'n' : ''} vor Abschnitten` : ''].filter(Boolean).join(', ');
+  box.innerHTML = `<div class="card stack" style="margin-top:12px"><b>Zeilen ordnen: ${esc(what)}</b>
+    <div class="small muted">Geänderte Stellen sind rechts markiert. Gespeichert wird eine neue Fassung „Zeilen geordnet“, „${esc(sheet.name)}“ bleibt, wie es ist.</div>
+    <div class="tidycmp">
+      <div><div class="lbl">Vorher</div><div class="sheet">${renderSheet(sheet.text, opt)}</div></div>
+      <div><div class="lbl">Nachher</div><div class="sheet" id="tidyAfter">${renderSheet(r.text, opt)}</div></div>
+    </div>
+    <div class="row"><button class="btn primary" id="saveTidy">Als neue Fassung speichern</button><button class="btn ghost" id="cancelTidy">Abbrechen</button></div></div>`;
+  const marks = new Set(r.marks);
+  box.querySelectorAll('#tidyAfter [data-src]').forEach((el) => { if (marks.has(+el.dataset.src)) el.classList.add('tidied'); });
+  $('#cancelTidy').onclick = () => { box.innerHTML = ''; };
+  $('#saveTidy').onclick = () => {
+    addSheet(s, `Zeilen geordnet ${fmtDate(new Date().toISOString())}`, r.text, true);
+    toast('Neue Fassung gespeichert und aktiviert'); done();
+  };
+  box.scrollIntoView({ block: 'start' });
 }
 
 function keepY(fn, keep = true) { const y = window.scrollY; fn(); if (keep) window.scrollTo(0, y); }

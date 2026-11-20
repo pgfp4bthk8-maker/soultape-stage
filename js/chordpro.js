@@ -549,3 +549,173 @@ export function analyze(raw) {
     empty: rows.every((r) => r.type === 'empty'),
   };
 }
+
+// ---------- Zeilen ordnen ----------
+// Bringt den Rohtext in eine Form, die man beim Spielen gut erfasst – ohne Inhalt zu ändern:
+//  1. vor jeder Abschnitts-Überschrift (Strophe, Refrain, Medley-Teil …) eine Leerzeile,
+//  2. reine Akkordzeilen, in denen sich die Folge wiederholt: eine Runde pro Zeile
+//     (mindestens 4 Akkorde bzw. Takte pro Zeile; ohne Wiederholung nur an großen Lücken),
+//  3. sehr lange Textzeilen an einem Satzzeichen nahe der Mitte teilen.
+// Das Ergebnis wird immer als neue Fassung gespeichert – das Original bleibt unberührt.
+
+const TIDY_MIN = 4;        // so viele Akkorde/Takte stehen mindestens in einer Zeile
+const TIDY_LONG = 56;      // ab so vielen sichtbaren Zeichen wird eine Textzeile geteilt
+const TIDY_GAP = 6;        // so viele Leerzeichen gelten als bewusste Lücke in einer Akkordzeile
+const END_DIRS = ['eoc', 'end_of_chorus', 'eov', 'end_of_verse', 'eob', 'end_of_bridge', 'end_of_part', 'eot', 'end_of_tab'];
+
+/** Bausteine einer reinen Akkordzeile mit Position – oder null, wenn noch etwas anderes darin steht. */
+function chordUnits(line) {
+  const toks = [];
+  const re = /\[([^\]]*)\]|[|:]+|[^\s[|]+/g;
+  let m, brackets = 0, plain = 0;
+  while ((m = re.exec(line)) !== null) {
+    const t = m[0], start = m.index, end = re.lastIndex;
+    if (m[1] !== undefined) {
+      const k = bracketKind(m[1]).kind;
+      if (!['chord', 'paren', 'multi', 'repeat'].includes(k)) return null;
+      brackets++; toks.push({ bar: false, key: m[1].trim(), start, end });
+    } else if (/^[|:]+$/.test(t)) {
+      if (!t.includes('|')) return null;
+      toks.push({ bar: true, start, end });
+    } else {
+      if (!isChord(t)) return null;
+      plain++; toks.push({ bar: false, key: t, start, end });
+    }
+  }
+  if (brackets && plain) return null;     // gemischt – lieber nicht anfassen
+  const chords = toks.filter((t) => !t.bar);
+  if (!chords.length) return null;
+  if (!toks.some((t) => t.bar)) return { bars: false, units: chords };
+  // Mit Taktstrichen: ein Takt = alles zwischen zwei Strichen, die Striche gehören zum Takt dazu
+  const units = [];
+  let cur = null, lastBar = null;
+  for (const t of toks) {
+    if (t.bar) {
+      if (cur) { cur.end = t.end; units.push(cur); cur = null; }
+      lastBar = t;
+    } else {
+      if (!cur) cur = { keys: [], start: lastBar ? lastBar.start : t.start, end: t.end };
+      cur.keys.push(t.key); cur.end = t.end;
+    }
+  }
+  if (cur) units.push(cur);
+  return { bars: true, units: units.map((u) => ({ key: u.keys.join(' '), start: u.start, end: u.end })) };
+}
+
+/** Kleinste Länge einer Runde, die sich mindestens zweimal wiederholt (letzte Runde darf unvollständig sein). */
+function chordPeriod(keys) {
+  for (let p = 1; p * 2 <= keys.length; p++) {
+    if (keys.every((k, i) => k === keys[i % p])) return p;
+  }
+  return 0;
+}
+
+/** Teilt eine reine Akkordzeile; gibt die neuen Zeilen zurück oder null. */
+function splitChordLine(line) {
+  const cu = chordUnits(line);
+  if (!cu) return null;
+  const u = cu.units;
+  const n = u.length;
+  const cut = (groups) => groups.map((g) => line.slice(u[g[0]].start, u[g[1]].end).trim());
+  const p = chordPeriod(u.map((x) => x.key));
+  if (p) {
+    const per = p * Math.ceil(TIDY_MIN / p);
+    const lines = Math.floor(n / per);
+    if (lines < 2) return null;
+    const groups = [];
+    for (let k = 0; k < lines; k++) groups.push([k * per, k === lines - 1 ? n - 1 : (k + 1) * per - 1]);
+    return cut(groups);
+  }
+  // Ohne Wiederholung nur an deutlich großen Lücken teilen (die hat der Schreiber bewusst gesetzt)
+  if (cu.bars || n < 6) return null;
+  const gaps = u.slice(1).map((x, i) => x.start - u[i].end);
+  const small = Math.max(0, ...gaps.filter((g) => g < TIDY_GAP));
+  const at = gaps.map((g, i) => (g >= TIDY_GAP && g >= 2 * small ? i : -1)).filter((i) => i >= 0);
+  if (!at.length) return null;
+  const groups = [];
+  let from = 0;
+  for (const i of at) { groups.push([from, i]); from = i + 1; }
+  groups.push([from, n - 1]);
+  if (groups.some((g) => g[1] - g[0] < 1)) return null;   // mindestens zwei Akkorde pro Zeile
+  return cut(groups);
+}
+
+const visible = (s) => s.replace(/\[[^\]]*\]/g, '');
+// Ein Teilstück muss eine normale Zeile bleiben – z. B. nicht plötzlich als Überschrift („Guitar solo, …“) gelten
+const staysLyric = (s) => { const r = parseSheet(s); return r.length === 1 && (r[0].type === 'lyric' || r[0].type === 'chords') && !r[0].span; };
+
+/** Teilt eine lange Textzeile mit Inline-Akkorden an einem Satzzeichen nahe der Mitte (auch mehrfach). */
+function splitLyricLine(line) {
+  const total = visible(line).trim().length;
+  if (total < TIDY_LONG) return null;
+  const first = (/\[([^\]]+)\]/.exec(line) || [])[1];
+  let best = null, depthB = 0, depthP = 0;
+  for (let j = 0; j < line.length; j++) {
+    const ch = line[j];
+    if (ch === '[') { depthB++; continue; }
+    if (ch === ']') { depthB = Math.max(0, depthB - 1); continue; }
+    if (depthB) continue;
+    if (ch === '(') depthP++;
+    if (ch === ')') depthP = Math.max(0, depthP - 1);
+    if (depthP || !/[,;.!?]/.test(ch) || !/\s/.test(line[j + 1] || '') || line[j - 1] === '.') continue;
+    const left = line.slice(0, j + 1).trimEnd();
+    const right = line.slice(j + 1).trim();
+    const vl = visible(left).trim().length, vr = visible(right).trim().length;
+    if (vl < 15 || vr < 15 || !staysLyric(left) || !staysLyric(right)) continue;
+    const frac = vl / total;
+    if (frac < 0.3 || frac > 0.7) continue;
+    // Beginnt danach die Akkordfolge von vorn, ist das die natürliche Stelle
+    const restart = first && (/^\[([^\]]+)\]/.exec(right) || [])[1] === first;
+    const score = Math.abs(frac - 0.5) - (restart ? 0.15 : 0);
+    if (!best || score < best.score) best = { score, left, right };
+  }
+  if (!best) return null;
+  return [best.left, best.right].flatMap((x) => splitLyricLine(x) || [x]);
+}
+
+/**
+ * Ordnet die Zeilen eines Blatts. Ergebnis: { text, blanks, splits, marks }
+ * – marks = Zeilennummern im neuen Text, die sich geändert haben (für die Vorschau).
+ */
+export function tidyLines(raw) {
+  const lines = raw.replace(/\r\n?/g, '\n').split('\n');
+  const rows = parseSheet(raw);
+  const bySrc = new Map();
+  for (const r of rows) {
+    if (r.src === undefined) continue;
+    if (!bySrc.has(r.src)) bySrc.set(r.src, []);
+    bySrc.get(r.src).push(r);
+    if (r.span === 2) bySrc.set(r.src + 1, [{ type: 'span' }]);
+  }
+  const types = (k) => (bySrc.get(k) || []).map((r) => r.type);
+  const isHead = (k) => types(k).some((t) => t === 'section' || t === 'medley');
+  const isSwitch = (k) => types(k).includes('switch');
+  const endDir = (k) => { const d = directive(lines[k].trim()); return !!d && END_DIRS.includes(d.name); };
+  // Vor welchen Zeilen kommt eine Leerzeile? (Soundwechsel direkt vor der Überschrift wandern mit)
+  const blankBefore = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    if (!isHead(i)) continue;
+    let j = i;
+    while (j > 0 && isSwitch(j - 1)) j--;
+    const k = j - 1;
+    if (k < 0 || !lines[k].trim() || isHead(k)) continue;
+    if (endDir(k) || types(k).some((t) => !['section', 'medley', 'empty'].includes(t))) blankBefore.add(j);
+  }
+  const out = [], marks = [];
+  let blanks = 0, splits = 0;
+  lines.forEach((line, i) => {
+    if (blankBefore.has(i)) { marks.push(out.length); out.push(''); blanks++; }
+    const rs = bySrc.get(i) || [];
+    let parts = null;
+    if (rs.length && rs.every((r) => (r.type === 'lyric' || r.type === 'chords') && !r.span) && !/[{}]/.test(line)) {
+      parts = splitChordLine(line);
+      if (parts && !parts.every(staysLyric)) parts = null;
+      if (!parts && !/\|/.test(line) && visible(line).trim()) parts = splitLyricLine(line);
+    }
+    if (parts && parts.length > 1) {
+      splits++;
+      for (const p of parts) { marks.push(out.length); out.push(p); }
+    } else out.push(line);
+  });
+  return { text: out.join('\n'), blanks, splits, marks };
+}

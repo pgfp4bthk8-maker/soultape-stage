@@ -420,3 +420,13 @@ body.nowing .wing-only { display: none !important; }
 .wingbox .snapnext b { font-size: 20px; }
 body.phone .wingbox { padding: 10px 12px; gap: 6px 18px; }
 body.phone .wingbox .snapval { font-size: 26px; }
+
+/* Zeilen ordnen: Vorher/Nachher nebeneinander, geänderte Zeilen markiert (seit 0.1.28) */
+.tidycmp { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.tidycmp > div { min-width: 0; }
+.tidycmp .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted, #9aa); margin-bottom: 4px; }
+.tidycmp .sheet { font-size: 15px; padding: 8px 10px; max-height: 70vh; overflow: auto; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; }
+.tidycmp .sheet .ln.tidied { background: rgba(80, 200, 120, .16); box-shadow: inset 3px 0 0 #50c878; }
+.tidycmp .sheet .ln.empty.tidied { height: .8em; }
+.tidycmp .sheet .switch.tidied { background: var(--switch-bg); }
+body.phone .tidycmp { grid-template-columns: 1fr; }
