@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.29 – 20.11.2026
+- **„Zeilen ordnen“ auch in der Song-Ansicht**: In der Leiste über dem Blatt gibt es neben „✎ Im Blatt ändern“ den Knopf „↵ Zeilen ordnen“ (auf dem Handy nur „↵“). Ein Tipp darauf wechselt zu „Bearbeiten“ und öffnet dort direkt die Vorschau Vorher/Nachher. Nach „Speichern“ oder „Abbrechen“ bist du wieder im Song.
+- Ist das Blatt schon geordnet, erscheint nur ein kurzer Hinweis und die Ansicht bleibt, wo sie ist.
+- Den Knopf gibt es nur im Vorbereitungsmodus. Auf der Bühne ist er ausgeblendet.
+
 ## 0.1.28 – 20.11.2026
 - **Zeilen ordnen**: Ein neuer Knopf „↵ Zeilen ordnen“ unter „Bearbeiten“ → „Leadsheet-Versionen“ ordnet die Zeilen des aktiven Blatts automatisch:
   - Wiederholt sich eine Akkordfolge in einer Zeile, steht jede Runde in einer eigenen Zeile, z. B. `E H C#m A E H C#m A` → zweimal `E H C#m A` untereinander. Eine Zeile behält mindestens 4 Akkorde bzw. Takte.

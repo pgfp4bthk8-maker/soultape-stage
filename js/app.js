@@ -11,7 +11,7 @@ import { splitSongs, renderSheet, sectionNames, tidyLines, analyze, guessKey, tr
 import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.28';
+export const APP_VERSION = '0.1.29';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -253,6 +253,7 @@ function viewSong(id) {
       <div class="grp trgrp" title="Transponieren"><button id="trDown">−</button><span>${tr === 0 ? 'Original' : (tr > 0 ? '+' : '') + tr}<br><b style="color:var(--chord)">${esc(transposeKey(s.key, tr, notation()) || '–')}</b></span><button id="trUp">+</button></div>
       <div class="grp" title="Schriftgröße"><button id="fsDown">A−</button><button id="fsUp">A+</button></div>
       ${sheet ? `<button class="btn prep-only ${ui.mark ? 'primary' : ''}" id="markBtn" title="Im Blatt ändern">${ui.mark ? 'Fertig' : '✎<span class="lbl-long"> Im Blatt ändern</span>'}</button>` : ''}
+      ${sheet && !ui.mark ? '<button class="btn prep-only" id="tidyBtn" title="Zeilen ordnen: wiederholte Akkordfolgen in eigene Zeilen, Leerzeile vor jedem Abschnitt">↵<span class="lbl-long"> Zeilen ordnen</span></button>' : ''}
       ${shows('metro') ? (s.bpm ? `<button class="btn metrobtn ${metroOn(s) ? 'primary' : ''}" id="metroBtn" title="Metronom ein/aus">♩ ${s.bpm}</button>`
         : `<a class="btn ghost prep-only" href="#/bearbeiten/${s.id}" title="Für das Metronom fehlt das Tempo">♩ Tempo fehlt</a>`) : ''}
       <span class="spacer" style="flex:1"></span>
@@ -297,6 +298,14 @@ function viewSong(id) {
   // Tippen rechts = weiter, links = zurück (sanft, um ca. zwei Drittel des Bildschirms)
   const sh = $('#sheet');
   const mb = $('#markBtn'); if (mb) mb.onclick = () => { ui.mark = !ui.mark; viewSongKeepScroll(id); };
+  // Zeilen ordnen: Vorschau läuft unter „Bearbeiten“, danach geht es zurück zum Song
+  const tb = $('#tidyBtn');
+  if (tb) tb.onclick = () => {
+    const r = tidyLines(sheet.text);
+    if (!r.blanks && !r.splits) { toast('Dieses Blatt ist schon geordnet.'); return; }
+    ui.tidyFrom = id;
+    location.hash = `#/bearbeiten/${id}`;
+  };
   let downX = 0, downY = 0, downT = 0;
   sh.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY; downT = Date.now(); });
   sh.addEventListener('pointerup', (e) => {
@@ -674,6 +683,12 @@ function viewEdit(id) {
   });
   const td = $('#tidySheet');
   if (td) td.onclick = () => openTidy(s, sheet, () => viewEdit(id));
+  // Aus der Song-Ansicht ausgelöst: Vorschau gleich öffnen, danach zurück zum Song
+  if (ui.tidyFrom === id) {
+    ui.tidyFrom = null;
+    const back = () => { location.hash = `#/song/${id}`; };
+    if (sheet) openTidy(s, sheet, back, back);
+  }
   $('#pasteSheet').onclick = () => openEditor('', 'Leadsheet einfügen (ChordPro oder Text mit Akkorden)');
   const ex = $('#exportSheet');
   if (ex) ex.onclick = () => download(`${fileName(s.title)}.chopro`, toChordPro(s, sheet), 'text/plain');
@@ -683,7 +698,7 @@ function viewEdit(id) {
  * Vorschau „Zeilen ordnen“: links das aktive Blatt, rechts das Ergebnis (geänderte Zeilen markiert).
  * Speichern legt eine neue Fassung an und macht sie aktiv – das Original bleibt unverändert.
  */
-function openTidy(s, sheet, done) {
+function openTidy(s, sheet, done, cancel = null) {
   const box = $('#sheetEditor');
   const r = tidyLines(sheet.text);
   if (!r.blanks && !r.splits) { box.innerHTML = ''; toast('Hier gibt es nichts zu ordnen.'); return; }
@@ -699,7 +714,7 @@ function openTidy(s, sheet, done) {
     <div class="row"><button class="btn primary" id="saveTidy">Als neue Fassung speichern</button><button class="btn ghost" id="cancelTidy">Abbrechen</button></div></div>`;
   const marks = new Set(r.marks);
   box.querySelectorAll('#tidyAfter [data-src]').forEach((el) => { if (marks.has(+el.dataset.src)) el.classList.add('tidied'); });
-  $('#cancelTidy').onclick = () => { box.innerHTML = ''; };
+  $('#cancelTidy').onclick = () => { box.innerHTML = ''; if (cancel) cancel(); };
   $('#saveTidy').onclick = () => {
     addSheet(s, `Zeilen geordnet ${fmtDate(new Date().toISOString())}`, r.text, true);
     toast('Neue Fassung gespeichert und aktiviert'); done();
