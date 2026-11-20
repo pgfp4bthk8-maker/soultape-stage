@@ -91,9 +91,11 @@ label.f > span { display: block; font-size: 13px; color: var(--muted); margin-bo
 .bk-ok { background: var(--ok); }
 .bk-warn { background: var(--chord); }
 .bk-alert { background: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
-.top nav a .bk { margin-left: 7px; vertical-align: 1px; }
+.top nav a .bk { width: 16px; height: 16px; margin-left: 8px; vertical-align: -2px; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+.top nav a .bk-alert { box-shadow: 0 0 0 4px var(--red-soft); }
 .bkline { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-.bkline .bk { width: 14px; height: 14px; }
+.bkline .bk { width: 22px; height: 22px; }
+.bknote .bk { width: 18px; height: 18px; }
 .bknote { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; text-decoration: none; color: var(--text); border-left-color: var(--red); }
 .prevbox { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
 .prevbox > div { flex: 1; min-width: 240px; }
@@ -348,7 +350,7 @@ body.phone .top { gap: 4px; padding: calc(6px + env(safe-area-inset-top)) 10px 6
 body.phone .top nav { gap: 2px; }
 body.phone .top nav a { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; padding: 8px 8px; font-size: 15px; }
 body.phone .top nav a .lbl-short { font-size: 18px; line-height: 1; }
-body.phone .top nav a .bk { margin-left: 0; }
+body.phone .top nav a .bk { width: 18px; height: 18px; margin-left: 3px; }
 body.phone .top .ver { display: none; }
 body.phone .mode { padding: 8px 10px; flex: none; }
 body.phone main { padding: 10px 12px; }
