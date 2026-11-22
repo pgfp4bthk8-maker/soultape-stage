@@ -166,6 +166,39 @@ export function partOptions(anchors) {
   return out;
 }
 
+/**
+ * Instrumente entlang einer Setliste (seit 0.1.32).
+ * songs: je Listenplatz der Song, null bei Pause oder fehlendem Song.
+ * → Map(Platz → { inst, change }). change = anderes Instrument als zuletzt eingetragen.
+ * Songs ohne Angabe und Pausen zählen nicht: A, –, B ist ein Wechsel bei B; A, –, A ist keiner.
+ */
+export function instPlan(songs, rig) {
+  const insts = cleanRig(rig).insts;
+  const out = new Map();
+  let last = null;
+  songs.forEach((s, i) => {
+    const id = s ? cleanMine(s.mine).inst : '';
+    const inst = id && insts.find((x) => x.id === id);
+    if (!inst) return;
+    out.set(i, { inst, change: !!last && last.id !== inst.id });
+    last = inst;
+  });
+  return out;
+}
+
+const dot = (inst) => `<i class="mydot" style="background:${inst.color}"></i>`;
+const instName = (inst) => inst.name || inst.short || 'Instrument';
+// Punkt und Name zusammen, damit sie beim Umbruch nicht auseinanderreißen
+const instTo = (inst) => `<span class="gto">${dot(inst)}<b>${esc(instName(inst))}</b></span>`;
+/** Schild in der Setliste: Farbe und Kürzel (ohne Kürzel der Name). */
+export const instBadge = (inst) => `<span class="badge ginst" title="${esc(instName(inst))}">${dot(inst)}<span>${esc(inst.short || instName(inst))}</span></span>`;
+/** Hinweiszeile vor einem Song mit anderem Instrument. */
+export const instSwitchHtml = (inst) => `<div class="gswitch"><span>⇄ Wechsel auf</span>${instTo(inst)}</div>`;
+/** Im Song: vor dem nächsten Song der Liste muss gewechselt werden. */
+export const instNextHtml = (inst) => `<div class="gswitch gnext"><span>⇄ Danach wechseln auf</span>${instTo(inst)}</div>`;
+/** Kurz am Knopf „nächster Song“. */
+export const instSwitchMark = (inst) => `<span class="gmark" title="Wechsel auf ${esc(instName(inst))}">⇄${dot(inst)}</span>`;
+
 const pill = (s) => `<span class="my my-${s.kind}">${esc(s.text)}</span>`;
 /** Schilder für eine Marke im Blatt. */
 export const soundBadges = (steps) => (steps && steps.length ? `<span class="mybad">${steps.map(pill).join('')}</span>` : '');

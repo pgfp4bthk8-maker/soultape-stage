@@ -8,13 +8,13 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   checkStored, adoptStored, storageProblem, canSave, whenSaveChanges, rescueText, hasRescue, deleteRescue, startOver } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
-import { soundPlan, soundBadges, soundBarHtml, soundBoxHtml, hasMine } from './mine.js';
+import { soundPlan, soundBadges, soundBarHtml, soundBoxHtml, hasMine, instPlan, instBadge, instSwitchHtml, instNextHtml, instSwitchMark } from './mine.js';
 import { mountRig, mountSong } from './mine-edit.js';
 import { splitSongs, renderSheet, sectionNames, markerNames, tidyLines, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
 import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.31';
+export const APP_VERSION = '0.1.32';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -282,6 +282,9 @@ function viewSong(id) {
   // Mein Sound: Box oben, im Blatt nur die Handgriffe (auch zurück zum Standard)
   const myOn = shows('mine');
   const myPlan = myOn && hasMine(s.mine) ? soundPlan(s.mine, state.settings.rig, sheet ? markerNames(sheet.text) : []) : null;
+  // Folgt die Ansicht einer Setliste: muss für den nächsten Song das Instrument gewechselt werden?
+  const nextInst = myOn && ctx && next ? listInsts(ctx.list).get(ctx.nextPos) : null;
+  const toInst = nextInst && nextInst.change ? nextInst.inst : null;
   const markExtra = myPlan ? (i) => soundBadges(myPlan.at.get(i)) : null;
   const secExtra = flowM ? (i) => { const r = flowM.at.get(i); return r ? `<span class="flbad">${r.map(flowBadges).join('')}</span>` : ''; } : null;
 
@@ -299,6 +302,7 @@ function viewSong(id) {
       ${next ? `<div class="snapnext"><div class="lbl">${ctx && ctx.breakBefore ? 'Nach der Pause' : 'Danach'}</div><div><b>${next.wingSnap ? esc(next.wingSnap) : '–'}</b> <span class="muted">${esc(next.title)}</span></div></div>` : ''}
     </div>` : ''}
     ${myOn ? soundBoxHtml(s.mine, state.settings.rig, s.id) : ''}
+    ${toInst ? instNextHtml(toInst) : ''}
     <div class="nord-only">
     <div class="nordbox">
       <div><div class="lbl">Nord-Programm</div><div class="prog">${s.nordSlot ? `<span class="slot">${esc(s.nordSlot)}</span>` : ''}${esc(s.nordProgram || s.title)}</div>
@@ -325,7 +329,7 @@ function viewSong(id) {
         : `<a class="btn ghost prep-only" href="#/bearbeiten/${s.id}" title="Für das Metronom fehlt das Tempo">♩ Tempo fehlt</a>`) : ''}
       <span class="spacer" style="flex:1"></span>
       ${sheet ? `<span class="badge prep-only sheetname">${esc(sheet.name)}</span>` : ''}
-      ${next ? `<a class="btn nextbtn phone-only" href="#/song/${next.id}"${navPos(next)} title="Nächster Song">${ctx && ctx.breakBefore ? '⏸ ' : ''}<span class="nt">${esc(next.title)}</span>${snapBadge(next)} ▶</a>` : ''}
+      ${next ? `<a class="btn nextbtn phone-only" href="#/song/${next.id}"${navPos(next)} title="Nächster Song">${ctx && ctx.breakBefore ? '⏸ ' : ''}<span class="nt">${esc(next.title)}</span>${snapBadge(next)}${toInst ? instSwitchMark(toInst) : ''} ▶</a>` : ''}
       ${metroOn(s) && !metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent }) : ''}
     </div>
     ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
@@ -335,7 +339,7 @@ function viewSong(id) {
       `<p class="muted" style="font-size:17px">Noch kein Leadsheet. <span class="prep-only">Unter <a href="#/import">Leadsheets importieren</a> kannst du deine ChordPro-Datei einlesen.</span></p>`}</div>
     <div class="songnav">
       ${prev ? `<a class="btn" href="#/song/${prev.id}"${navPos(prev)}>◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
-      ${next ? `<a class="btn" href="#/song/${next.id}"${navPos(next)}>${ctx && ctx.breakBefore ? `<span class="pausehint">⏸ ${esc(ctx.breakBefore)} – danach:</span> ` : ''}${esc(next.title)} ▶</a>`
+      ${next ? `<a class="btn" href="#/song/${next.id}"${navPos(next)}>${ctx && ctx.breakBefore ? `<span class="pausehint">⏸ ${esc(ctx.breakBefore)} – danach:</span> ` : ''}${toInst ? instSwitchMark(toInst) + ' ' : ''}${esc(next.title)} ▶</a>`
         : (ctx ? '<span class="btn" style="flex:1;opacity:.6">Ende der Liste</span>' : '<span style="flex:1"></span>')}
     </div>
     ${metroOn(s) && metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent, bottom: true }) : ''}`);
@@ -1176,6 +1180,9 @@ function listContext(songId) {
   };
 }
 
+/** Instrumente der eigenen Songs entlang einer Liste (Platz → { inst, change }). */
+const listInsts = (l) => instPlan(l.items.map((it) => (it.type === 'song' ? getSong(it.id) : null)), state.settings.rig);
+
 function viewLists() {
   const lists = [...state.lists].sort((a, b) => (b.date || b.created).localeCompare(a.date || a.created));
   const card = (l) => {
@@ -1238,6 +1245,7 @@ function viewList(id) {
   // Eine Set-Überschrift steht nur vor einem Song (zwei Pausen hintereinander ergeben kein leeres Set)
   const isSongAt = (i) => { const it = l.items[i]; return !!(it && it.type === 'song' && getSong(it.id)); };
   const head0 = isSongAt(0) ? setHead('') : '';
+  const insts = shows('mine') ? listInsts(l) : new Map();
   const rows = l.items.map((it, i) => {
     if (it.type === 'break') {
       return `<div class="lrow brk" data-i="${i}"><span class="drag prep-only">≡</span><span class="pz">⏸</span>
@@ -1246,9 +1254,11 @@ function viewList(id) {
     const s = getSong(it.id);
     if (!s) return '';
     songNo++;
-    return `<div class="lrow" data-i="${i}"><span class="drag prep-only">≡</span><span class="no">${songNo}</span>
+    const gi = insts.get(i);
+    // Der Hinweis ist keine .lrow: Ziehen und ▲/▼ zählen nur Songs und Pausen
+    return `${gi && gi.change ? instSwitchHtml(gi.inst) : ''}<div class="lrow" data-i="${i}"><span class="drag prep-only">≡</span><span class="no">${songNo}</span>
       <a class="lt" href="#/song/${s.id}" data-open="${i}"><span class="t">${esc(s.title)}${noTag(s)}</span><span class="a">${esc(s.artist)}</span></a>
-      <span class="meta"><b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${snapBadge(s)}${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.durationSec ? fmtDur(s.durationSec) : ''}</span>${edit}</div>`;
+      <span class="meta">${gi ? instBadge(gi.inst) : ''}<b>${esc(transposeKey(s.key, s.transpose || 0, notation()))}</b>${snapBadge(s)}${s.nordSlot ? `<span class="badge slot">${esc(s.nordSlot)}</span>` : ''}${s.durationSec ? fmtDur(s.durationSec) : ''}</span>${edit}</div>`;
   }).join('');
 
   shell('lists', `

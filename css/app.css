@@ -472,6 +472,22 @@ button.chip { color: inherit; max-width: 100%; text-align: left; overflow-wrap: 
 .swatch { width: 40px; height: 40px; padding: 0; border: 3px solid transparent; border-radius: 50%; cursor: pointer; }
 .swatch.on { border-color: var(--bg2); box-shadow: 0 0 0 3px var(--text); }
 
+/* Instrument in der Setliste, Wechsel zwischen zwei Songs (seit 0.1.32) */
+.badge.ginst { display: inline-flex; align-items: center; gap: 5px; max-width: 9em; background: var(--my-bg); color: var(--text); font-weight: 700; }
+.badge.ginst > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge.ginst .mydot { width: 12px; height: 12px; box-shadow: none; }
+.gswitch {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 6px 0; padding: 6px 12px;
+  border: 1px solid var(--my-line); border-radius: 8px; background: var(--my-bg); color: var(--my); font-size: 15px;
+}
+.gswitch b { color: var(--text); overflow-wrap: anywhere; min-width: 0; }
+.gswitch .mydot { width: 16px; height: 16px; }
+.gswitch .gto { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+body.stage .gswitch { font-size: 18px; }
+.gmark { display: inline-flex; align-items: center; gap: 3px; flex: none; color: var(--my); vertical-align: middle; }
+.gmark .mydot { width: 12px; height: 12px; box-shadow: none; }
+body.phone .badge.ginst { max-width: 6.5em; }
+
 /* Zeilen ordnen: Vorher/Nachher nebeneinander, geänderte Zeilen markiert (seit 0.1.28) */
 .tidycmp { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .tidycmp > div { min-width: 0; }

@@ -1,5 +1,10 @@
 # Änderungen
 
+## 0.1.32 – 22.11.2026
+- **Gitarre in der Setliste** (mit „Mein Sound“): Jeder Song zeigt die eigene Gitarre mit Farbe und Kürzel.
+- **Wechsel-Hinweis**: Vor einem Song mit einer anderen Gitarre steht „⇄ Wechsel auf …“, auch über Pausen hinweg. Songs ohne Angabe zählen dabei nicht. Beim Umstellen der Liste rechnet die App neu.
+- **Im Song**, wenn er aus einer Setliste geöffnet ist: Muss für den nächsten Song gewechselt werden, steht das oben unter der Box und als ⇄ am Knopf zum nächsten Song.
+
 ## 0.1.31 – 22.11.2026
 - **Mein Sound** für Gitarre, Bass und andere Instrumente: eigene Einstellungen pro Song und pro Part. Bei den Rollen Gitarre und Bass ist es an, sonst lässt es sich unter „Einstellungen“ → „Anzeigen“ einschalten.
   - **Einmal einrichten** (Einstellungen → Mein Sound): Gitarren mit Kürzel, Farbe und Pickup-Stellungen (Vorlagen mit 3 oder 5), Name des Effektgeräts, eigene Effektliste.
