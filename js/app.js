@@ -8,11 +8,13 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   checkStored, adoptStored, storageProblem, canSave, whenSaveChanges, rescueText, hasRescue, deleteRescue, startOver } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
-import { splitSongs, renderSheet, sectionNames, tidyLines, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
+import { soundPlan, soundBadges, soundBarHtml, soundBoxHtml, hasMine } from './mine.js';
+import { mountRig, mountSong } from './mine-edit.js';
+import { splitSongs, renderSheet, sectionNames, markerNames, tidyLines, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
 import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.30';
+export const APP_VERSION = '0.1.31';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -108,14 +110,14 @@ const isStage = () => state.settings.mode === 'stage';
 const ROLES = {
   keyboard: { name: 'Keyboard', show: { chords: true, nord: true, metro: false } },
   vocals: { name: 'Gesang', show: { chords: false, nord: false, metro: false } },
-  guitar: { name: 'Gitarre', show: { chords: true, nord: false, metro: false } },
-  bass: { name: 'Bass', show: { chords: true, nord: false, metro: false } },
+  guitar: { name: 'Gitarre', show: { chords: true, nord: false, metro: false, mine: true } },
+  bass: { name: 'Bass', show: { chords: true, nord: false, metro: false, mine: true } },
   drums: { name: 'Schlagzeug', show: { chords: false, nord: false, metro: true } },
   mixer: { name: 'Mischpult', show: { chords: false, nord: false, metro: false, wing: true } },
 };
-const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen', metro: 'Metronom (Tempo-Leiste)', flow: 'Ablauf (wer singt, Solos, Effekte)', wing: 'Wing-Snapshot (Mischpult)' };
+const SHOW = { chords: 'Akkorde im Blatt', nord: 'Nord-Sounds und Anleitungen', metro: 'Metronom (Tempo-Leiste)', flow: 'Ablauf (wer singt, Solos, Effekte)', wing: 'Wing-Snapshot (Mischpult)', mine: 'Mein Sound (Gitarre, Pickup, Effektgerät)' };
 // Schalter, die ohne ausdrückliche Wahl aus sind (alle anderen sind an)
-const SHOW_OFF = ['metro', 'wing'];
+const SHOW_OFF = ['metro', 'wing', 'mine'];
 const profile = () => state.settings.profile || { name: '', role: 'keyboard' };
 /** Songnummer als kleines Schild (leer, wenn der Song keine hat). */
 const noTag = (s) => (s.no ? `<span class="sno">${s.no}</span>` : '');
@@ -277,6 +279,10 @@ function viewSong(id) {
   const flowM = shows('flow') && cleanFlow(s.flow).length ? matchFlow(s.flow, sheet ? sectionNames(sheet.text) : []) : null;
   // Leiste: ganzer Ablauf, wenn im Blatt nichts passt (oder kein Blatt da ist), sonst nur die Zeilen ohne Platz
   const flowBar = flowM && flowM.unmatched.length ? flowBarHtml(flowM.at.size ? flowM.unmatched : flowM.rows) : '';
+  // Mein Sound: Box oben, im Blatt nur die Handgriffe (auch zurück zum Standard)
+  const myOn = shows('mine');
+  const myPlan = myOn && hasMine(s.mine) ? soundPlan(s.mine, state.settings.rig, sheet ? markerNames(sheet.text) : []) : null;
+  const markExtra = myPlan ? (i) => soundBadges(myPlan.at.get(i)) : null;
   const secExtra = flowM ? (i) => { const r = flowM.at.get(i); return r ? `<span class="flbad">${r.map(flowBadges).join('')}</span>` : ''; } : null;
 
   shell('songs', `
@@ -292,6 +298,7 @@ function viewSong(id) {
       <div><div class="lbl">Wing-Snapshot</div><div class="snapval">${s.wingSnap ? esc(s.wingSnap) : '<span class="muted small">nicht eingetragen</span>'}</div></div>
       ${next ? `<div class="snapnext"><div class="lbl">${ctx && ctx.breakBefore ? 'Nach der Pause' : 'Danach'}</div><div><b>${next.wingSnap ? esc(next.wingSnap) : '–'}</b> <span class="muted">${esc(next.title)}</span></div></div>` : ''}
     </div>` : ''}
+    ${myOn ? soundBoxHtml(s.mine, state.settings.rig, s.id) : ''}
     <div class="nord-only">
     <div class="nordbox">
       <div><div class="lbl">Nord-Programm</div><div class="prog">${s.nordSlot ? `<span class="slot">${esc(s.nordSlot)}</span>` : ''}${esc(s.nordProgram || s.title)}</div>
@@ -322,8 +329,9 @@ function viewSong(id) {
       ${metroOn(s) && !metroCfg().bottom ? metroHtml(s.bpm, s.beats || 4, { accent: !!metroCfg().accent }) : ''}
     </div>
     ${ui.mark ? '<div class="notice small prep-only" style="margin-top:8px">Tippe auf eine Zeile: Du kannst sie direkt ändern (z. B. einen falschen Akkord) oder davor einen Soundwechsel setzen. Ein Tipp auf einen Wechsel-Balken ändert oder entfernt ihn. Dein Original bleibt erhalten – die Änderungen landen in einer eigenen Version „Arbeitsfassung“.</div>' : ''}
+    ${myPlan ? soundBarHtml(myPlan.bar) : ''}
     ${flowBar}
-    <div class="sheet${ui.mark ? ' marking' : (shows('chords') ? '' : ' nochords')}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key, secExtra }) :
+    <div class="sheet${ui.mark ? ' marking' : (shows('chords') ? '' : ' nochords')}" id="sheet">${sheet ? renderSheet(sheet.text, { steps: tr, notation: notation(), key: s.key, secExtra, markExtra }) :
       `<p class="muted" style="font-size:17px">Noch kein Leadsheet. <span class="prep-only">Unter <a href="#/import">Leadsheets importieren</a> kannst du deine ChordPro-Datei einlesen.</span></p>`}</div>
     <div class="songnav">
       ${prev ? `<a class="btn" href="#/song/${prev.id}"${navPos(prev)}>◀ ${esc(prev.title)}</a>` : '<span style="flex:1"></span>'}
@@ -349,6 +357,7 @@ function viewSong(id) {
   if (sp) sp.onclick = () => { ui.step = Math.max(0, ui.step - 1); updateGuide(part); };
   if (sn) sn.onclick = () => { ui.step = Math.min(part.steps.length - 1, ui.step + 1); updateGuide(part); };
 
+  const myEd = $('#myEdit'); if (myEd) myEd.addEventListener('click', () => { ui.mineFrom = id; });
   $('#trDown').onclick = () => { s.transpose = tr - 1; persist(); viewSongKeepScroll(id); };
   $('#trUp').onclick = () => { s.transpose = tr + 1; persist(); viewSongKeepScroll(id); };
   $('#fsDown').onclick = () => { state.settings.fontSize = Math.max(14, (state.settings.fontSize || 22) - 2); persist(); document.documentElement.style.setProperty('--font', state.settings.fontSize + 'px'); tidyChordRows(); };
@@ -615,6 +624,8 @@ function viewEdit(id) {
 
     ${flowEditHtml(s, sheet)}
 
+    ${shows('mine') ? '<h2 id="myHead">Mein Sound</h2><div class="stack" id="mySong"></div>' : ''}
+
     <h2>Sounds</h2>
     ${(s.parts || []).map((p, pi) => `
       <div class="card stack" style="margin-bottom:12px">
@@ -688,6 +699,14 @@ function viewEdit(id) {
     c.classList.toggle('on'); persist();
   });
   bindFlowEdit(s, sheet, () => keepY(() => viewEdit(id), true));
+  const myBox = $('#mySong');
+  // anchors als Funktion: Die aktive Fassung kann sich ändern, während das Formular offen ist
+  const mountMine = () => mountSong(myBox, s, () => { const v = activeSheet(s); return v ? markerNames(v.text) : []; });
+  if (myBox) {
+    mountMine();
+    if (ui.mineFrom === id) $('#myHead').scrollIntoView({ block: 'start' });
+  }
+  ui.mineFrom = null;
   app.querySelectorAll('[data-f]').forEach((el) => el.onchange = () => { s.parts[+el.dataset.p][el.dataset.f] = el.value; persist(); });
   app.querySelectorAll('[data-sf]').forEach((el) => el.onchange = () => {
     const x = s.parts[+el.dataset.p].steps[+el.dataset.s];
@@ -718,7 +737,7 @@ function viewEdit(id) {
   });
   $('#addPart').onclick = () => { s.parts = s.parts || []; s.parts.push({ name: 'Refrain', lex: '', summary: '', steps: [], tips: '' }); persist(); keepY(() => viewEdit(id)); };
   $('#del').onclick = () => { if (confirm(`„${s.title}“ wirklich löschen?`)) { deleteSong(id); location.hash = '#/'; } };
-  app.querySelectorAll('input[name=act]').forEach((r) => r.onchange = () => { s.activeSheet = r.value; persist(); toast('Aktive Version geändert'); });
+  app.querySelectorAll('input[name=act]').forEach((r) => r.onchange = () => { s.activeSheet = r.value; persist(); toast('Aktive Version geändert'); if (myBox) mountMine(); });
   app.querySelectorAll('[data-delsheet]').forEach((b) => b.onclick = () => {
     if (!confirm('Diese Version löschen?')) return;
     if (!deleteSheet(s, b.dataset.delsheet)) toast('Die letzte Version kann nicht gelöscht werden.');
@@ -1384,6 +1403,8 @@ function viewSettings() {
         ${Object.entries(SHOW).map(([k, name]) => `<span class="chip ${shows(k) ? 'on' : ''}" data-show="${k}">${shows(k) ? '✓ ' : ''}${name}</span>`).join('')}</div></div>
     </div>
 
+    ${shows('mine') ? '<h2>Mein Sound</h2><div class="card stack" id="rigCard"></div>' : ''}
+
     <h2>Darstellung</h2>
     <div class="card stack">
       <div><b>Akkord-Schreibweise</b><div class="row" style="margin-top:6px">
@@ -1455,6 +1476,8 @@ function viewSettings() {
       Für die Bühne zusätzlich: Fokus „Nicht stören“ einschalten.</div>
 
     <p class="small muted" style="margin-top:24px">SoulTape Stage · Version ${APP_VERSION}</p>`);
+  const rigCard = $('#rigCard');
+  if (rigCard) mountRig(rigCard);
   $('#set-name').onchange = (e) => { st.profile = { ...profile(), name: e.target.value.trim() }; persist(); };
   app.querySelectorAll('[data-role]').forEach((c) => c.onclick = () => {
     st.profile = { ...profile(), role: c.dataset.role };
@@ -1502,9 +1525,12 @@ function viewSettings() {
     const f = e.target.files[0]; if (!f) return;
     if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt. Der jetzige Stand wird beiseitegelegt und lässt sich hier zurückholen.\n\nAnsicht, Schriftgröße, Blätter-Tempo, Metronom und die Songnummern-Vergabe bleiben, wie sie auf diesem Gerät eingestellt sind.')) return;
     try {
-      const r = importBackup(await f.text());
+      const r = importBackup(await f.text(), {
+        askMine: () => confirm('Die Sicherung und dieses Gerät haben beide Angaben zu „Mein Sound“.\n\nOK = Es ist meine Sicherung, ihre Angaben übernehmen.\nAbbrechen = Meine Angaben von diesem Gerät behalten.'),
+      });
       if (lastSaveOk()) toast((r.kept ? 'Backup importiert – bisheriger Stand beiseitegelegt' : 'Backup importiert (bisheriger Stand konnte nicht beiseitegelegt werden)')
-          + (r.ownProfile ? '. Die Sicherung stammt von jemand anderem – dein Profil bleibt.' : ''), r.ownProfile ? 6000 : 2200);
+          + (r.ownProfile ? '. Die Sicherung stammt von jemand anderem – dein Profil bleibt.' : '')
+          + (r.mineStayed ? ' „Mein Sound“ bleibt, wie es auf diesem Gerät war.' : ''), r.ownProfile || r.mineStayed ? 6000 : 2200);
       route();
     } catch (err) { toast(err.message || 'Import fehlgeschlagen', 6000, true); }
   };

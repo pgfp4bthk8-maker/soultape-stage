@@ -1,5 +1,15 @@
 # Änderungen
 
+## 0.1.31 – 22.11.2026
+- **Mein Sound** für Gitarre, Bass und andere Instrumente: eigene Einstellungen pro Song und pro Part. Bei den Rollen Gitarre und Bass ist es an, sonst lässt es sich unter „Einstellungen“ → „Anzeigen“ einschalten.
+  - **Einmal einrichten** (Einstellungen → Mein Sound): Gitarren mit Kürzel, Farbe und Pickup-Stellungen (Vorlagen mit 3 oder 5), Name des Effektgeräts, eigene Effektliste.
+  - **Pro Song** (Bearbeiten → Mein Sound): Standard mit Gitarre, Pickup, Preset, Scene, Effekten und Notiz. Zur Auswahl stehen nur die Pickup-Stellungen der gewählten Gitarre.
+  - **Pro Part** nur die Abweichungen. Die Parts kommen aus den Abschnitten des eigenen Blatts, auch Medley-Teile. „Chorus“ gilt für alle, „Chorus 3“ nur für den dritten und startet mit den Angaben von „Chorus“. Alles Leere gilt wie der Standard.
+  - **Effekte** je Part als komplette Auswahl, der Standard ist vorangehakt. So lässt sich auch „keine Effekte“ eintragen.
+  - **Im Song**: oben eine Box mit dem Standard, im Blatt Schilder nur dort, wo sich etwas ändert, auch zurück zum Standard. Bei einem Wechsel von Preset oder Scene nennen sie alle Effekte, die an sein sollen. Parts ohne Abschnitt im Blatt stehen als Leiste darüber.
+- **Persönlich**: „Mein Sound“ reist in keinem Paket mit, steht aber in der eigenen Sicherung. Beim Einspielen einer fremden oder älteren Sicherung bleiben die eigenen Angaben erhalten.
+- Beim Einspielen einer fremden Sicherung bleiben jetzt auch die **eigenen Anzeige-Schalter**.
+
 ## 0.1.30 – 22.11.2026
 - **Speicherschutz bei unlesbaren Daten**: Kann die App die Daten beim Start nicht lesen, überschreibt sie sie nicht mehr. Oben erscheint ein Hinweis. Unter „Einstellungen“ lässt sich eine Rettungsdatei speichern, eine Sicherung einspielen oder mit den Startdaten neu beginnen. Der unlesbare Stand wird dabei aufgehoben.
 - **Speicherschutz bei zwei offenen Fenstern** (z. B. Browser-Tab und installierte App auf Android oder am PC): Ein Fenster mit altem Stand schreibt nicht mehr über den neueren. Übersichten aktualisieren sich selbst, in einem offenen Song oder Formular erscheint „Aktualisieren“. Was in diesem Fenster danach eingegeben wurde, muss man wiederholen.

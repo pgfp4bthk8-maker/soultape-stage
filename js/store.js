@@ -3,6 +3,7 @@
 
 import { SEED_SONGS, SEED_VERSION } from './data.js';
 import { cleanFlow } from './flow.js';
+import { hasMine, hasRig } from './mine.js';
 
 const KEY = 'soultape-stage';
 const SCHEMA = 1;
@@ -360,7 +361,8 @@ function hash(t) {
   for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
   return h.toString(36);
 }
-const fingerprint = () => hash(JSON.stringify([state.songs, state.lists]));
+// Die Einrichtung von „Mein Sound“ zählt mit. Ohne sie bleibt der Fingerabdruck wie vor 0.1.31 (Ampel springt nicht um).
+const fingerprint = () => hash(JSON.stringify(state.settings.rig ? [state.songs, state.lists, state.settings.rig] : [state.songs, state.lists]));
 
 let meta = {};
 // Jedes Mal frisch lesen: Ein anderes Fenster kann inzwischen gesichert haben
@@ -405,7 +407,7 @@ export function exportBackup() {
 
 // Sicherheitsnetz: Vor dem Einspielen wird der Stand des Geräts beiseitegelegt (immer nur einer).
 const PREV = 'soultape-stage-vorher';
-const snapshotNow = () => JSON.stringify({ saved: new Date().toISOString(), songs: state.songs, lists: state.lists, seedVersion: state.seedVersion });
+const snapshotNow = () => JSON.stringify({ saved: new Date().toISOString(), songs: state.songs, lists: state.lists, seedVersion: state.seedVersion, rig: state.settings.rig || null });
 function readPrevious() {
   try { const d = JSON.parse(localStorage.getItem(PREV)); return d && Array.isArray(d.songs) ? d : null; } catch (e) { return null; }
 }
@@ -425,6 +427,10 @@ export function restorePrevious() {
   releaseBroken();
   // Nach unlesbaren Daten zeigt die App nur Startdaten – die lohnt es nicht beiseitezulegen
   const cur = wasBroken ? null : snapshotNow();
+  // Seit 0.1.31 enthält der Stand auch die Einrichtung von „Mein Sound“; ältere Stände dürfen sie nicht löschen
+  if (d.rig !== undefined) {
+    if (d.rig) state.settings.rig = d.rig; else delete state.settings.rig;
+  } else carryMine(state.songs, d.songs);
   state.songs = d.songs;
   state.lists = Array.isArray(d.lists) ? d.lists : [];
   state.seedVersion = d.seedVersion || state.seedVersion;
@@ -439,17 +445,32 @@ export function restorePrevious() {
 // fontSize/pageMs = Schriftgröße und Blätter-Tempo, metro = Metronom (Lage oben/unten, Klick).
 export const DEVICE_SETTINGS = ['layout', 'numbering', 'mode', 'fontSize', 'pageMs', 'metro'];
 
-export function importBackup(text) {
+export function importBackup(text, { askMine = () => false } = {}) {
   const d = JSON.parse(text);
   if (!d || !validSongs(d.songs) || (Array.isArray(d.lists) && !d.lists.every((l) => isObj(l) && Array.isArray(l.items)))) throw new Error('Das ist keine gültige Sicherungsdatei.');
   // Ein Song-Paket enthält nur einzelne Songs – als Sicherung eingespielt würde es alles andere löschen
   if (d.type === 'paket') throw new Error('Das ist ein Song-Paket, keine Sicherung. Pakete spielst du unter „Songs teilen“ ein.');
+  // „Mein Sound“ ist persönlich: Es wird nur aus der eigenen Sicherung übernommen.
+  // Hat die Sicherung nichts davon (fremd oder vor 0.1.31), bleibt, was auf dem Gerät steht.
+  // Haben beide etwas und die Namen fehlen, entscheidet der Nutzer (askMine).
+  const me = state.settings.profile, them = d.settings && d.settings.profile;
+  const named = !!(me && me.name && them && them.name);
+  const mineHere = mineIn(state.songs, state.settings.rig);
+  const mineThere = mineIn(d.songs, d.settings && d.settings.rig);
+  const foreign = named && !sameName(me.name, them.name);
+  const keepMine = foreign || (mineHere && (!mineThere || (!named && !askMine())));
   checkStored();
   const wasBroken = !!blocked;
   releaseBroken();
   let kept = true;
   // Der unlesbare Stand ist schon gerettet; die Startdaten sollen einen guten beiseitegelegten Stand nicht verdrängen
   if (!wasBroken) { try { localStorage.setItem(PREV, snapshotNow()); } catch (e) { kept = false; } }
+  const rigBefore = state.settings.rig, showBefore = state.settings.show;
+  let mineKept = 0;
+  if (keepMine) {
+    if (mineThere) d.songs.forEach((s) => { delete s.mine; });   // Angaben der anderen Person
+    mineKept = carryMine(state.songs, d.songs);
+  }
   state.songs = d.songs;
   if (Array.isArray(d.lists)) state.lists = d.lists;   // alte Sicherungen ohne Listen lassen die Listen unberührt
   // Sicherung einer anderen Person (z. B. die Sicherung des Keyboarders beim Kollegen): eigenes Profil und Nummernvergabe behalten
@@ -462,13 +483,56 @@ export function importBackup(text) {
   for (const k of DEVICE_SETTINGS) {
     if (device[k] === undefined) delete state.settings[k]; else state.settings[k] = device[k];
   }
-  if (ownProfile) state.settings.profile = mine;
+  if (ownProfile) {
+    state.settings.profile = mine;
+    // Die Anzeige-Schalter gehören zur Rolle, also zum eigenen Profil
+    if (showBefore) state.settings.show = showBefore; else delete state.settings.show;
+  } else if (keepMine && showBefore && showBefore.mine !== undefined) {
+    state.settings.show = { ...(state.settings.show || {}), mine: showBefore.mine };
+  }
+  if (keepMine) {
+    if (rigBefore) state.settings.rig = rigBefore; else delete state.settings.rig;
+  }
   state.seedVersion = d.seedVersion || state.seedVersion;
   state.noMax = Math.max(state.noMax || 0, d.noMax || 0);
   state.settings.navList = null;
   // Nur wenn es wirklich gespeichert ist, entspricht das Gerät der eingespielten Sicherung
-  if (save()) markBackupDone(d.exported);
-  return { kept, ownProfile };
+  if (save() && !(keepMine && (mineHere || mineThere))) markBackupDone(d.exported);
+  return { kept, ownProfile, mineKept, mineStayed: !!(keepMine && mineHere) };
+}
+
+// ---------- „Mein Sound“ beim Einspielen behalten ----------
+const mineIn = (songs, rig) => hasRig(rig) || songs.some((s) => hasMine(s.mine));
+/**
+ * Hängt die Angaben aus from an die passenden Songs in to (ID, Band-Kennung, dann genauer Titel).
+ * Ein Song ohne Gegenstück kommt ganz mit, sonst wären seine Angaben weg. Rückgabe: Anzahl Songs mit Angaben.
+ */
+function carryMine(from, to) {
+  const keys = (s) => [s.id, s.bandId, ...(Array.isArray(s.links) ? s.links : [])].filter(Boolean);
+  const names = (s) => [s.title, ...(Array.isArray(s.aliases) ? s.aliases : [])].map(norm).filter(Boolean);
+  const free = new Set(to);
+  const todo = from.filter((s) => hasMine(s.mine));
+  const pairs = new Map();
+  // Erst alle sicheren Kennungen, dann Titel – sonst schnappt ein Titel einem anderen Song sein Gegenstück weg
+  for (const same of [keys, names]) {
+    for (const s of todo) {
+      if (pairs.has(s)) continue;
+      const mine = same(s);
+      const t = [...free].find((x) => same(x).some((k) => mine.includes(k)));
+      if (t) { pairs.set(s, t); free.delete(t); }
+    }
+  }
+  for (const s of todo) {
+    let t = pairs.get(s);
+    if (!t) {
+      t = clone(s);
+      if (to.some((x) => x.id === t.id)) t.id = uid();
+      if (t.no && to.some((x) => x.no === t.no)) t.no = null;
+      to.push(t);
+    }
+    t.mine = clone(s.mine);
+  }
+  return todo.length;
 }
 
 // ---------- Song-Paket: einzelne Songs mit Kollegen austauschen ----------

@@ -448,10 +448,11 @@ function textHtml(t) {
 }
 
 /** Rendert einen Songtext als HTML für die Bühnenansicht. */
-export function renderSheet(raw, { steps = 0, notation = 'de', key = '', secExtra = null } = {}) {
+export function renderSheet(raw, { steps = 0, notation = 'de', key = '', secExtra = null, markExtra = null } = {}) {
   const opt = { steps, notation, flats: prefersFlats(key, steps) };
   const rows = parseSheet(raw);
   const html = [];
+  let markNo = 0;  // Zähler der Marken (Abschnitte + Medley-Trenner) – markExtra(i) hängt „Mein Sound“ an (siehe markerNames)
   let secNo = 0;   // Zähler der Abschnitte – secExtra(i) hängt z. B. die Ablauf-Schilder an (siehe sectionNames)
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
@@ -476,12 +477,17 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '', secExtr
       }
       case 'empty': html.push('<div class="ln empty"></div>'); break;
       case 'section': {
-        const extra = secExtra ? secExtra(secNo) || '' : '';
-        secNo++;
+        const extra = (markExtra ? markExtra(markNo) || '' : '') + (secExtra ? secExtra(secNo) || '' : '');
+        secNo++; markNo++;
         html.push(`<div class="ln sec${r.chorus ? ' sec-chorus' : ''}">${r.repeat ? '↻ ' : ''}${esc(r.text)}${extra}</div>`);
         break;
       }
-      case 'medley': html.push(`<div class="ln medley">${esc(r.text)}</div>`); break;
+      case 'medley': {
+        const extra = markExtra ? markExtra(markNo) || '' : '';
+        markNo++;
+        html.push(`<div class="ln medley">${esc(r.text)}${extra}</div>`);
+        break;
+      }
       case 'trigger': html.push(`<div class="ln trig${ch}"><span>${esc(r.text)}</span></div>`); break;
       case 'vocal': html.push(`<div class="ln vocal${ch}">(${esc(r.text)})</div>`); break;
       case 'kawai': html.push(`<div class="ln kawai">Kawai: ${esc(r.text)}</div>`); break;
@@ -530,6 +536,10 @@ export function renderSheet(raw, { steps = 0, notation = 'de', key = '', secExtr
 /** Abschnittsnamen eines Blatts in Reihenfolge – dieselbe Zählung wie secExtra in renderSheet. */
 export function sectionNames(raw) {
   return parseSheet(raw).filter((r) => r.type === 'section').map((r) => r.text);
+}
+/** Abschnitte und Medley-Trenner in der Reihenfolge von markExtra(i). */
+export function markerNames(raw) {
+  return parseSheet(raw).filter((r) => r.type === 'section' || r.type === 'medley').map((r) => ({ text: r.text, medley: r.type === 'medley' }));
 }
 
 /** Zählt Dinge, die beim Import auffallen (für die Vorschau). */

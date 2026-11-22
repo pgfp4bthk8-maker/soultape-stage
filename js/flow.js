@@ -30,6 +30,9 @@ const KINDS = [
   ['break', /^(break|pause|stop)/],
 ];
 
+/** Anzeigename je Abschnittsart. Jeder wird von sectionKey() wieder als dieselbe Art erkannt. */
+export const KIND_NAMES = { pre: 'Pre-Chorus', chorus: 'Chorus', verse: 'Vers', bridge: 'Bridge', intro: 'Intro', outro: 'Outro', solo: 'Solo', break: 'Break' };
+
 /**
  * Art und Nummer eines Abschnittsnamens: „Verse 2“ → { kind: 'verse', n: 2 },
  * „(2.Str.)“ → verse 2, „Chorus 2x“ → chorus ohne Nummer (2x = wiederholen), „Ref.2“ → chorus 2.
@@ -59,12 +62,29 @@ export function matchFlow(flow, sections) {
   const rows = cleanFlow(flow);
   const at = new Map();
   const used = new Set();
-  const keys = rows.map((r) => sectionKey(r.part));
+  matchRows(rows.map((r) => r.part), (sections || []).map((text) => ({ text }))).forEach((hit, i) => {
+    at.set(i, [rows[hit]]);
+    used.add(hit);
+  });
+  const unmatched = rows.filter((r, i) => !used.has(i) && (r.voc || r.solo || r.fx));
+  return { at, unmatched, rows };
+}
+
+/**
+ * Die Zuordnung selbst (auch für „Mein Sound“): parts = eingetragene Part-Namen,
+ * anchors = [{ text, medley? }] in Blatt-Reihenfolge → Map(Anker-Index → Part-Index).
+ * Ein Medley-Trenner ist ein Songtitel, er passt nur bei gleichem Wortlaut („Breakfast …“ ist kein Break).
+ */
+export function matchRows(parts, anchors) {
+  const keys = parts.map(sectionKey);
+  const at = new Map();
   const count = {};
-  (sections || []).forEach((text, i) => {
+  (anchors || []).forEach(({ text, medley }, i) => {
     const k = sectionKey(text);
     let hit = -1;
-    if (k.kind) {
+    if (medley) {
+      if (k.plain) hit = keys.findIndex((rk) => rk.plain === k.plain);
+    } else if (k.kind) {
       count[k.kind] = (count[k.kind] || 0) + 1;
       const n = k.n || count[k.kind];
       hit = keys.findIndex((rk) => rk.kind === k.kind && rk.n === n);
@@ -72,10 +92,9 @@ export function matchFlow(flow, sections) {
     } else if (k.plain) {
       hit = keys.findIndex((rk) => !rk.kind && rk.plain === k.plain);
     }
-    if (hit >= 0) { at.set(i, [rows[hit]]); used.add(hit); }
+    if (hit >= 0) at.set(i, hit);
   });
-  const unmatched = rows.filter((r, i) => !used.has(i) && (r.voc || r.solo || r.fx));
-  return { at, unmatched, rows };
+  return at;
 }
 
 /** Kleine Schilder für eine Ablauf-Zeile (ohne den Abschnittsnamen). */
