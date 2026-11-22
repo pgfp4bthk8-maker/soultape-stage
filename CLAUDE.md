@@ -72,6 +72,7 @@ Regler-IDs stehen in `CONTROLS` in `js/panel.js` (z. B. `org-model`, `rot-fast`,
 
 Die erste Probedatei des Nutzers (10 Einträge, Dateiname in `CLAUDE.local.md`, **nicht** im Repo) ist uneinheitlich. Der Parser behandelt:
 - `{new_song}`-Trennung, `{title}`/`{t}`, `{subtitle}`/`{st}`, `{key}`, `{soc}`/`{eoc}`, `{start_of_part}`, `{comment}` (Werbe-/Quellen-Kommentare werden ausgeblendet)
+- **Zwei Wortlisten für Abschnitte** (Fehler bis 0.1.32): `KINDS` in `js/flow.js` (Art erkennen) und `SECTION_RE`/`SECTION_WORDS` in `js/chordpro.js` (Überschrift erkennen). Was `flow.js` als Art kennt, muss auch der Parser erkennen – sonst fehlen Schilder von Ablauf und „Mein Sound“. `SECTION_RE` ist die alte, lockere Regel (bleibt, damit nichts verloren geht); neue Wörter nur in die strenge Regel `SECTION_WORDS`. Immer mit deutschen **und** englischen Wörtern testen und an den echten Dateien gegen die Vorversion vergleichen (keine Überschrift verloren, keine Textzeile dazu).
 - Abschnitte als normaler Text: `Verse 1`, `(Chorus)`, `CHORUS:`, `(Intro 4x)`, `(2.Str.)`, `Bridge:` usw.
 - Spielhinweise in Klammern → orange „Trigger“: `(Lauf)`, `(nur Git)`, `(Synth)`, `(bis Gesang einsetzt)`, `(1.Umk)`; in Akkordzeilen auch inline `(2T)`, `(Bass)`. Regel: **bis 4 Wörter** = Trigger, **länger** = Backing-Vocals/Einwurf → grau-kursiv (Zeilentyp `vocal`, CSS `.vocal`)
 - Alte Kawai-Codes wie `11A EFF`, `33C EFFOrgel 70%`, `(33C+11A+11B)` → werden erkannt und ins Feld `kawai` übernommen
@@ -126,7 +127,7 @@ Die erste Probedatei des Nutzers (10 Einträge, Dateiname in `CLAUDE.local.md`, 
 
 ## Testen
 
-- Lokal: im Projektordner `node tools/server.js` und `http://localhost:8000` öffnen – ein Doppelklick auf `index.html` funktioniert wegen ES-Modulen nicht. **Python ist auf dem PC des Nutzers nicht installiert.** Für Claude Code gibt es `.claude/launch.json` (Name `soultape-stage`).
+- Lokal: im Projektordner `node tools/server.js` und `http://localhost:8000` öffnen – ein Doppelklick auf `index.html` funktioniert wegen ES-Modulen nicht. **Die App braucht kein Python** (seit 22.11.2026 für Hilfsskripte auf dem PC des Nutzers installiert, nicht zuverlässig im PATH). Für Claude Code gibt es `.claude/launch.json` (Name `soultape-stage`).
 - **Node auf dem PC des Nutzers ist Version 6** (kann keine ES-Module). Parser deshalb im Browser testen: auf der lokalen Seite `await import('/js/chordpro.js?' + Date.now())` ausführen.
 - Achtung Service Worker: Er liefert auch lokal zuerst aus dem Cache. Nach Code-Änderungen im Test-Browser Registrierung und Caches löschen (`navigator.serviceWorker.getRegistrations()` → `unregister()`, `caches.keys()` → `caches.delete()`).
 - Tests, die den Speicher verändern: auf `http://127.0.0.1:8000` statt `localhost` (eigener, getrennter Speicher), mit erfundenen Daten, danach `localStorage.clear()`. Zwei Fenster lassen sich dort mit zwei Iframes nachstellen.

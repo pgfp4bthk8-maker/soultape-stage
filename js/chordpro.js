@@ -140,10 +140,25 @@ export function transposeKey(key, steps, notation) {
 // ---------- Einlesen ----------
 
 const SECTION_RE = /^\(?\s*((?:pre-?|post-?)?chorus|verse|strophe|str\.?|\d\.\s*str\.?|refrain|ref\.?\d*|bridge|intro|outro|solo|guitar solo|instrumental|interlude|zwischenspiel|coda|ending|ende|break)\b[^()]*\)?\s*:?\s*$/i;
+// Seit 0.1.33 zusätzlich: jede Abschnittsart, die KINDS in flow.js kennt („Vers 2“, „2. Strophe“, „Schluss“, „Git-Solo“).
+// Bewusst streng – nur Wort, Nummer, Wiederholung, Doppelpunkt, Klammern –, damit keine Textzeile
+// wie „Schluss mit lustig“ oder „Vers für Vers“ zur Überschrift wird. Neue Art in flow.js → auch hier eintragen!
+const SECTION_WORDS = ['pre(?:-?\\s*chorus)?', 'chorus', 'vor-?refrain', 'refrain', 'ref\\.?', 'verse?', 'strophe', 'str\\.?',
+  'bridge', 'intro', 'einleitung', 'outro', 'coda', 'ending', 'ende', 'schluss',
+  '(?:(?:guitar|gitarren|git|keys?|piano|orgel|sax|bass|drum)\\s*-?)?solo', 'instrumental', 'interlude', 'zwischenspiel', 'break'].join('|');
+const REPEAT = '(?:\\d{1,2}\\s*x|x\\s*\\d{1,2})';
+const SECTION_HEAD = `(?:\\d{1,2}(?:\\s*\\.\\s*|\\s+))?(?:${SECTION_WORDS})(?:\\s*\\.?\\s*\\d{1,2}\\.?)?(?:\\s*${REPEAT}|\\s*\\(\\s*${REPEAT}\\s*\\))?\\s*:?`;
+const SECTION_STRICT_RE = new RegExp(`^(?:${SECTION_HEAD}|\\(\\s*${SECTION_HEAD}\\s*\\)\\s*:?)$`, 'i');
+const isSection = (t) => SECTION_RE.test(t) || SECTION_STRICT_RE.test(t.trim());
+/** Anzeigename einer Überschrift. Eine Klammer am Ende („Chorus (2x)“) bleibt vollständig. */
+const sectionTitle = (s) => (!s.startsWith('(') && s.includes('(') ? s.replace(/\s*:$/, '') : s.replace(/^\(|\)\s*:?$|:$/g, '')).trim();
 const KAWAI_RE = /^\(?\s*\d{2}[A-C](?:[\s+]|$|\)|EFF)/;
 const MEDLEY_RE = /^[-—–_]{3,}\s*([^-—–_].*?)\s*[-—–_]{3,}\s*$/;
 // Abschnittsname, der einen Refrain meint (Pre-Chorus zählt nicht dazu)
-const isChorusName = (t) => /chorus|refrain|^ref(\.|\d|\b)/i.test(t) && !/^\(?\s*pre/i.test(t);
+const isChorusName = (t) => {
+  const n = t.replace(/^\(?\s*(?:\d{1,2}(?:\s*\.\s*|\s+))?/, '');   // „2. Refrain“ → „Refrain“
+  return /chorus|refrain|^ref(\.|\d|\b)/i.test(n) && !/^(?:pre|vor-?refrain)/i.test(n);
+};
 // Besetzungs-Hinweise ohne Klammern, z. B. „Bass & Drums In“, „Guitar Only“, „nur Git“
 const INSTR = '(?:guitars?|gitarren?|git|bass|drums|schlagzeug|keys|keyboards?|piano|klavier|orgel|organ|synth|vocals?|gesang|band|alle|all)';
 const INSTR_LIST = `${INSTR}(?:\\s*(?:&|\\+|/|,|und|and)\\s*${INSTR})*`;
@@ -219,7 +234,7 @@ export function readMeta(raw) {
 /** Kurze Textzeile direkt unter dem Titel, die wie ein Interpret aussieht (z. B. „Bryan Adams“). */
 function isArtistLine(s) {
   return !!s && !s.startsWith('{') && !s.startsWith('#') && !/[[\]]/.test(s) && s.split(/\s+/).length <= 4
-    && !KAWAI_RE.test(s) && !SECTION_RE.test(s) && !isChordLine(s) && !/^\(/.test(s);
+    && !KAWAI_RE.test(s) && !isSection(s) && !isChordLine(s) && !/^\(/.test(s);
 }
 
 /** Schlägt eine Tonart aus den Akkorden vor (erster Akkord, gegengeprüft mit dem letzten). */
@@ -328,7 +343,7 @@ export function parseSheet(raw) {
         // Kommentar, der nur Titel (und Interpret) wiederholt, z. B. „Use Somebody - Kings of Leon“
         const nv = normText(v);
         if (nv && title && (nv === normText(title) || nv === normText(title + artist))) continue;
-        if (SECTION_RE.test(v)) section(v.replace(/[()]/g, '').trim());
+        if (isSection(v)) section(v.replace(/[()]/g, '').trim());
         else push({ type: 'trigger', text: v });
         continue;
       }
@@ -343,19 +358,19 @@ export function parseSheet(raw) {
     if (md) { chorus = null; push({ type: 'medley', text: md[1] }); continue; }
     // „INTRO | C | C/E | F |“ → Abschnitt + Akkordzeile
     const bar = /^([A-Za-z][A-Za-z\s.\d-]{1,20}?)\s*\|(.*)$/.exec(s);
-    if (bar && SECTION_RE.test(bar[1].trim())) {
+    if (bar && isSection(bar[1].trim())) {
       section(bar[1].trim());
       const rest = ('|' + bar[2]).replace(/\}\s*$/, '');
       push({ type: 'chords', tokens: rest.split(/(\s+)/).filter((x) => x !== '') });
       continue;
     }
-    if (!/\[/.test(s) && s.length <= 40 && SECTION_RE.test(s)) {
-      section(s.replace(/^\(|\)\s*:?$|:$/g, '').trim());
+    if (!/\[/.test(s) && s.length <= 40 && isSection(s)) {
+      section(sectionTitle(s));
       continue;
     }
     // „... Chorus ...“ = hier den Refrain wiederholen (eigener Hinweis, öffnet keinen Refrain-Block)
     const bare = s.replace(/^[.…\s]+|[.…\s]+$/g, '');
-    if (bare !== s && bare && !/\[/.test(s) && SECTION_RE.test(bare)) {
+    if (bare !== s && bare && !/\[/.test(s) && isSection(bare)) {
       chorus = null;
       out.push({ type: 'section', text: bare, chorus: isChorusName(bare), repeat: true });
       continue;
@@ -369,9 +384,10 @@ export function parseSheet(raw) {
     if (!/\[/.test(s) && HINT_RE.test(s)) { push({ type: 'trigger', text: s }); continue; }
     // Ganze Zeile in eckigen Klammern, aber kein Akkord: [Intro], [Chorus 2x], [guitar stops]
     const whole = /^\[([^\]]+)\]$/.exec(s);
-    if (whole && bracketKind(whole[1]).kind === 'note') {
+    const wk = whole ? bracketKind(whole[1]).kind : '';
+    if (wk === 'note' || (wk === 'odd' && isSection(whole[1]))) {
       const t = whole[1].trim();
-      if (SECTION_RE.test(t)) section(t);
+      if (isSection(t)) section(t);
       else push({ type: isHint(t) ? 'trigger' : 'vocal', text: t });
       continue;
     }
@@ -379,7 +395,7 @@ export function parseSheet(raw) {
       // Akkordzeile über einer Textzeile → in Inline-Akkorde umwandeln
       const nxt = lines[i + 1];
       const ns = (nxt || '').trim();
-      if (ns && !/\|/.test(s) && !/[[\]{}]/.test(ns) && !isChordLine(ns) && !SECTION_RE.test(ns) && !KAWAI_RE.test(ns) && !/^\(.*\)$/.test(ns) && !MEDLEY_RE.test(ns)) {
+      if (ns && !/\|/.test(s) && !/[[\]{}]/.test(ns) && !isChordLine(ns) && !isSection(ns) && !KAWAI_RE.test(ns) && !/^\(.*\)$/.test(ns) && !MEDLEY_RE.test(ns)) {
         const pos = [];
         const cre = /\S+/g; let cm;
         while ((cm = cre.exec(line)) !== null) pos.push({ col: cm.index, chord: cm[0] });

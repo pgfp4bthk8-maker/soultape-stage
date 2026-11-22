@@ -40,6 +40,7 @@ export const KIND_NAMES = { pre: 'Pre-Chorus', chorus: 'Chorus', verse: 'Vers', 
 export function sectionKey(text) {
   let t = String(text || '').toLowerCase().replace(/[()[\]:]/g, ' ').trim();
   t = t.replace(/\b\d+\s*x\b|\bx\s*\d+\b|\bx\b/g, ' ').replace(/\s+/g, ' ').trim();   // Wiederholungen
+  t = t.replace(/^([a-zäöüß .-]*[a-zäöüß])(\d{1,2}\.?)$/, '$1 $2');   // „Verse2“, „Str1“: nur die Nummer am Ende (nicht „Intro Gm7 Dm7 …“)
   // „2. Strophe“ / „2.Str.“ → Nummer vorne
   let n = null;
   const front = /^(\d+)\s*\.?\s*(.*)$/.exec(t);

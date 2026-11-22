@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.1.33 – 22.11.2026
+- **Mehr Überschriften werden erkannt**: „Vers“, „Vers 2“, „2. Strophe“, „3. Verse“, „Verse2“, „Str1“, „Pre“, „Pre Chorus“, „Vorrefrain“, „Einleitung“, „Schluss“, Soli mit Instrument („Gitarrensolo“, „Git-Solo“, „Piano Solo“), dazu Wiederholungen wie „Chorus (2x)“ und Formen in eckigen Klammern wie `[Git-Solo]`.
+- Das behebt **fehlende Schilder**: Nach dem Chorus fehlte bei „Vers 2“ das Schild zurück auf den Standard (Mein Sound), und der Ablauf für Gesang und Mischpult fand diese Abschnitte nicht.
+- Der Refrain-Balken endet jetzt an „Vers“, und „Vers 1“ direkt unter dem Titel gilt nicht mehr als Interpret.
+- Die Regel ist streng: Textzeilen wie „Schluss mit lustig“ bleiben Text. Was bisher als Überschrift erkannt wurde, bleibt es.
+
 ## 0.1.32 – 22.11.2026
 - **Gitarre in der Setliste** (mit „Mein Sound“): Jeder Song zeigt die eigene Gitarre mit Farbe und Kürzel.
 - **Wechsel-Hinweis**: Vor einem Song mit einer anderen Gitarre steht „⇄ Wechsel auf …“, auch über Pausen hinweg. Songs ohne Angabe zählen dabei nicht. Beim Umstellen der Liste rechnet die App neu.
