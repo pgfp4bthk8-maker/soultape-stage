@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.1.30 – 22.11.2026
+- **Speicherschutz bei unlesbaren Daten**: Kann die App die Daten beim Start nicht lesen, überschreibt sie sie nicht mehr. Oben erscheint ein Hinweis. Unter „Einstellungen“ lässt sich eine Rettungsdatei speichern, eine Sicherung einspielen oder mit den Startdaten neu beginnen. Der unlesbare Stand wird dabei aufgehoben.
+- **Speicherschutz bei zwei offenen Fenstern** (z. B. Browser-Tab und installierte App auf Android oder am PC): Ein Fenster mit altem Stand schreibt nicht mehr über den neueren. Übersichten aktualisieren sich selbst, in einem offenen Song oder Formular erscheint „Aktualisieren“. Was in diesem Fenster danach eingegeben wurde, muss man wiederholen.
+- **Fehler beim Speichern** werden jetzt immer gemeldet, auch beim Anlegen von Songs, Listen und Blättern. Erfolgsmeldungen überdecken die Warnung nicht mehr.
+- Auf der **Bühne** erscheinen diese Hinweise nicht. Die App bleibt dort benutzbar, und der Hinweis kommt beim Wechsel in die Vorbereitung.
+- Beschädigte Sicherungsdateien werden vor dem Einspielen abgelehnt. Ältere Sicherungen bleiben einspielbar.
+- Der Schutz wirkt erst, wenn alle offenen Fenster mindestens 0.1.30 haben.
+
 ## 0.1.29 – 20.11.2026
 - **„Zeilen ordnen“ auch in der Song-Ansicht**: In der Leiste über dem Blatt gibt es neben „✎ Im Blatt ändern“ den Knopf „↵ Zeilen ordnen“ (auf dem Handy nur „↵“). Ein Tipp darauf wechselt zu „Bearbeiten“ und öffnet dort direkt die Vorschau Vorher/Nachher. Nach „Speichern“ oder „Abbrechen“ bist du wieder im Song.
 - Ist das Blatt schon geordnet, erscheint nur ein kurzer Hinweis und die Ansicht bleibt, wo sie ist.

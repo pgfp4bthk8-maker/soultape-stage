@@ -113,6 +113,10 @@ body.nonord .nord-only, body.nonord .sheet .ln.kawai { display: none !important;
 .lt .sno { margin: 0 0 0 8px; }
 .songs .sno.big { font-size: 20px; min-width: 2.6em; padding: 6px 6px; margin: 0; align-self: center; flex: none; }
 .notice { border-left: 4px solid var(--chord); background: var(--bg2); padding: 10px 14px; border-radius: 8px; }
+.notice.storebar { border-left-color: #ff6b6b; margin-bottom: 12px; }
+.storebar .btn { display: flex; width: fit-content; margin-top: 10px; }
+.card.rescue { border-color: #ff6b6b; margin-bottom: 12px; }
+button[disabled] { opacity: .45; }
 
 /* ---------- Songliste ---------- */
 .songs { list-style: none; margin: 0; padding: 0; }

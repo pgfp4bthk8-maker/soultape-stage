@@ -4,14 +4,15 @@ import { state, save, getSong, sortedSongs, newSong, deleteSong, addSheet, activ
   getList, newList, deleteList, snapshotList, restoreSnapshot,
   backupStatus, markBackupDone, BACKUP_DUE_DAYS, previousInfo, restorePrevious,
   exportPackage, readPackage, packagePlan, applyPackage, listPlan, SHARED_FIELDS,
-  songByNo, nextNo, setSongNo, numberAllSongs } from './store.js';
+  songByNo, nextNo, setSongNo, numberAllSongs,
+  checkStored, adoptStored, storageProblem, canSave, whenSaveChanges, rescueText, hasRescue, deleteRescue, startOver } from './store.js';
 import { LEXICON } from './data.js';
 import { SECTIONS, renderPanel, controlsOf } from './panel.js';
 import { splitSongs, renderSheet, sectionNames, tidyLines, analyze, guessKey, transposeKey, switchLine, switchText, readBpm, readBeats } from './chordpro.js';
 import { cleanFlow, matchFlow, flowBadges, flowBarHtml, flowText, sectionKey } from './flow.js';
 import { metroHtml, startMetro, stopMetro } from './metronome.js';
 
-export const APP_VERSION = '0.1.29';
+export const APP_VERSION = '0.1.30';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
@@ -21,13 +22,71 @@ const TAGS = ['Opener', 'Abschluss', 'Zugabe', 'Mitsingen', 'Tanzflächenfüller
 let ui = { part: 0, step: 0, guide: false, importItems: null };
 
 // ---------- Hilfen ----------
-function toast(msg, ms = 2200) {
+let warnUntil = 0;   // solange eine Speicher-Warnung steht, darf keine Erfolgsmeldung sie überdecken
+function toast(msg, ms = 2200, error = false) {
+  if (!error && Date.now() < warnUntil) return;
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), ms);
 }
-function persist() { if (!save()) toast('Speichern fehlgeschlagen – bitte Backup exportieren.'); }
+const persist = save;   // Fehler meldet saveWarning(), auch bei save()-Aufrufen aus store.js
+
+// ---------- Speicherschutz: Hinweise ----------
+// Nur im Vorbereitungsmodus. Auf der Bühne erscheint nichts, die App bleibt benutzbar.
+const SAVE_PROBLEM = {
+  broken: 'Nicht gespeichert: Die Daten auf diesem Gerät sind unlesbar.',
+  access: 'Nicht gespeichert: Der Speicher ist nicht erreichbar.',
+  stale: 'Nicht gespeichert: In einem anderen Fenster wurde etwas geändert.',
+  failed: 'Speichern fehlgeschlagen – bitte Backup exportieren.',
+};
+function saveWarning() {
+  showProblem();
+  if (isStage()) return;
+  toast(SAVE_PROBLEM[storageProblem()] || SAVE_PROBLEM.failed, 5000);   // kommt mehrfach hintereinander nur einmal
+  warnUntil = Date.now() + 5000;
+}
+/** Leiste oben auf der Seite (kein Pop-up): was ist los, was ist zu tun? */
+function showProblem() {
+  const old = $('#storeBar'), main = $('main'), p = storageProblem();
+  if (old) old.remove();
+  if (!p || !main) return;
+  const text = {
+    broken: '<b>Deine Daten konnten nicht gelesen werden.</b> Du siehst nur Startdaten. Der alte Stand bleibt unangetastet, und solange wird nichts gespeichert. <a href="#/einstellungen" id="storeFix">Zur Rettung in den Einstellungen</a>',
+    access: '<b>Der Speicher ist nicht erreichbar.</b> Es wird nichts gespeichert. Bitte die App schließen und neu öffnen.',
+    stale: '<b>In einem anderen Fenster wurde etwas geändert.</b> Hier wird erst wieder gespeichert, wenn du aktualisierst. Was du hier seitdem eingegeben hast, musst du danach wiederholen. <button class="btn" id="storeSync">Aktualisieren</button>',
+    failed: '<b>Das letzte Speichern ist fehlgeschlagen.</b> Bitte gleich unter <a href="#/einstellungen">Einstellungen</a> ein Backup exportieren und die App so lange offen lassen.',
+  };
+  main.insertAdjacentHTML('afterbegin', `<div class="notice storebar prep-only" id="storeBar" role="status">${text[p]}</div>`);
+  const b = $('#storeSync');
+  if (b) b.onclick = () => keepY(route);
+  const fix = $('#storeFix');
+  // Die Rettung steht weit unten in den Einstellungen – direkt dorthin springen
+  if (fix) fix.onclick = (e) => {
+    e.preventDefault();
+    if (location.hash !== '#/einstellungen') { history.pushState(null, '', '#/einstellungen'); route(); }
+    const card = $('.card.rescue');
+    if (card) card.scrollIntoView({ block: 'center' });
+  };
+}
+/** Für Aktionen, die viel ändern: vorher prüfen, damit bei einem Problem nichts verloren geht. */
+function readyToSave() {
+  if (canSave()) return true;
+  saveWarning();
+  return false;
+}
+/** Ein anderes Fenster hat gespeichert. Übersichten zeichnen sich neu, offene Songs und Eingaben bleiben stehen. */
+function otherWindow() {
+  const before = storageProblem();
+  checkStored();
+  const p = storageProblem();
+  if (p === before) return;
+  const view = (location.hash || '#/').split('/')[1] || '';
+  const el = document.activeElement;
+  const typing = el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && document.hasFocus();
+  if (p === 'stale' && !typing && ['', 'listen', 'lexikon', 'einstellungen'].includes(view)) keepY(route);
+  else showProblem();
+}
 const fmtDate = (iso) => new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const fmtDur = (sec) => sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : '';
 function parseDur(s) {
@@ -158,6 +217,7 @@ function shell(active, body) {
     </header>
     <main>${body}</main>`;
   applyLayout();
+  showProblem();
   $('#modeBtn').onclick = () => {
     state.settings.mode = isStage() ? 'prep' : 'stage';
     persist(); route();
@@ -175,7 +235,7 @@ function viewSongs() {
   if (/^\d+$/.test(q)) list.sort((a, b) => (b.no === +q) - (a.no === +q));
   const bk = backupStatus();
   shell('songs', `
-    ${bk.level === 'alert' ? `<a class="notice bknote prep-only" href="#/einstellungen"><i class="bk bk-alert"></i><span><b>Sicherung fällig.</b> ${esc(backupText(bk))}. Tippen, um jetzt zu sichern.</span></a>` : ''}
+    ${bk.level === 'alert' && !['broken', 'access'].includes(storageProblem()) ? `<a class="notice bknote prep-only" href="#/einstellungen"><i class="bk bk-alert"></i><span><b>Sicherung fällig.</b> ${esc(backupText(bk))}. Tippen, um jetzt zu sichern.</span></a>` : ''}
     <div class="row" style="margin-bottom:12px">
       <input type="search" id="q" placeholder="Song oder Nummer suchen …" value="${esc(ui.search || '')}" style="flex:1;min-width:200px">
       <a class="btn prep-only" href="#/teilen">Songs teilen</a>
@@ -610,7 +670,7 @@ function viewEdit(id) {
   bind('#f-nord', (e) => { s.nordProgram = e.target.value.trim(); persist(); });
   bind('#f-no', (e) => {
     const v = e.target.value.trim();
-    if (setSongNo(s, v)) { if (!lastSaveOk()) toast('Speichern fehlgeschlagen – bitte Backup exportieren.'); return; }
+    if (setSongNo(s, v)) return;
     const other = songByNo(v);
     toast(other ? `Nummer ${v} gehört schon zu „${other.title}“` : 'Bitte eine Zahl von 1 bis 9999 eingeben');
     e.target.value = s.no || '';
@@ -783,6 +843,7 @@ function viewImport() {
   app.querySelectorAll('[data-target]').forEach((c) => c.onchange = () => { items[+c.dataset.target].target = c.value; });
   $('#cancelImp').onclick = () => { ui.importItems = null; viewImport(); };
   $('#doImp').onclick = () => {
+    if (!readyToSave()) return;
     const stamp = new Date().toLocaleDateString('de-DE');
     let n = 0;
     for (const it of items) {
@@ -802,7 +863,7 @@ function viewImport() {
       addSheet(s, `Original-Import ${stamp}`, it.raw, !activeSheet(s));
       n++;
     }
-    persist();
+    if (!persist()) return;
     ui.importItems = null;
     toast(`${n} Leadsheet(s) importiert`);
     location.hash = '#/';
@@ -1040,10 +1101,10 @@ function viewPackage() {
   const ps = $('#pkSounds'); if (ps) ps.onchange = () => { ui.pkgSounds = ps.checked; keepY(viewPackage); };
   $('#pkCancel').onclick = () => { ui.pkg = null; viewShare(); };
   $('#pkDo').onclick = () => {
+    if (!readyToSave()) return;
     const r = applyPackage(pkg, { sounds: ui.pkgSounds });
     ui.pkg = null;
-    if (!lastSaveOk()) toast('Speichern fehlgeschlagen – Speicher voll?');
-    else {
+    if (lastSaveOk()) {
       const parts = [];
       if (r.listsNew) parts.push(`${r.listsNew} ${r.listsNew === 1 ? 'Liste' : 'Listen'} angelegt`);
       if (r.listsUpdated) parts.push(`${r.listsUpdated} ${r.listsUpdated === 1 ? 'Liste' : 'Listen'} aktualisiert`);
@@ -1368,16 +1429,16 @@ function viewSettings() {
     </div>
 
     <h2>Sicherung & Übertragung</h2>
+    ${rescueHtml()}
     <div class="card stack">
       <p class="small muted" style="margin:0">Deine Daten liegen nur auf diesem Gerät. Zum Übertragen vom PC aufs iPad: hier exportieren, Datei aufs iPad bringen (z. B. per Mail oder iCloud) und dort importieren.</p>
       <div class="bkline"><i class="bk bk-${bk.level}"></i><span>${esc(backupText(bk))}</span></div>
       <p class="small muted" style="margin:0">Grün = alles gesichert · Gelb = es gibt neue Änderungen · Rot = seit ${BACKUP_DUE_DAYS} Tagen ungesichert. Die Sicherungsdatei am besten in iCloud Drive ablegen – liegt sie nur auf dem iPad, hilft sie nicht, wenn das iPad ausfällt.</p>
       <div class="small muted" id="persistInfo"></div>
-      <div class="row"><button class="btn primary" id="exp">Backup exportieren</button>
+      <div class="row"><button class="btn primary" id="exp"${['broken', 'access'].includes(storageProblem()) ? ' disabled title="Erst die unlesbaren Daten retten"' : ''}>Backup exportieren</button>
         <label class="btn">Backup importieren<input type="file" id="imp" accept=".json,application/json" hidden></label>
         <button class="btn" id="expCho">Alle Leadsheets als ChordPro</button></div>
       ${prev ? `<div class="prevbox"><div><b>Beiseitegelegter Stand vom ${fmtDate(prev.saved)}</b><div class="small muted">${prev.songs} Songs, ${prev.lists} ${prev.lists === 1 ? 'Liste' : 'Listen'} – so sah dieses Gerät aus, bevor zuletzt eine Sicherung eingespielt oder ein Stand zurückgeholt wurde.</div></div><button class="btn" id="undoImp">Diesen Stand zurückholen</button></div>` : ''}
-      ${lastSaveOk() ? '' : '<div class="notice">Achtung: Das letzte Speichern ist fehlgeschlagen.</div>'}
     </div>
 
     <h2>Startdaten</h2>
@@ -1414,12 +1475,17 @@ function viewSettings() {
     if (!open) { toast('Alle Songs haben schon eine Nummer'); return; }
     if (!confirm(`${open} Songs bekommen eine Nummer (alphabetisch, ab ${nextNo()}). Neue Songs werden auf diesem Gerät künftig automatisch nummeriert. Nur fortfahren, wenn du die Nummern für die Band vergibst.`)) return;
     const n = numberAllSongs();
-    if (!lastSaveOk()) toast('Speichern fehlgeschlagen – bitte Backup exportieren.'); else toast(`${n} Songs nummeriert`);
+    if (lastSaveOk()) toast(`${n} Songs nummeriert`);
     viewSettings();
   };
   $('#set-master').onchange = (e) => { st.nordMaster = e.target.value.trim(); persist(); };
   $('#set-ref').onchange = (e) => { st.nordRef = e.target.value.trim(); persist(); };
+  bindRescue();
   $('#exp').onclick = () => {
+    checkStored();
+    const p = storageProblem();
+    // 'failed' darf exportieren: Dann ist die Datei die einzige Kopie der letzten Änderung
+    if (p && p !== 'failed') { saveWarning(); return; }
     download(`soultape-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup(), 'application/json');
     markBackupDone();
     // Bei der Gelegenheit den Browser bitten, die Daten dauerhaft zu behalten (kein Dialog in Safari)
@@ -1437,16 +1503,15 @@ function viewSettings() {
     if (!confirm('Backup importieren? Die Daten auf diesem Gerät werden durch die Sicherung ersetzt. Der jetzige Stand wird beiseitegelegt und lässt sich hier zurückholen.\n\nAnsicht, Schriftgröße, Blätter-Tempo, Metronom und die Songnummern-Vergabe bleiben, wie sie auf diesem Gerät eingestellt sind.')) return;
     try {
       const r = importBackup(await f.text());
-      toast(!lastSaveOk() ? 'Speichern fehlgeschlagen – Speicher voll?'
-        : (r.kept ? 'Backup importiert – bisheriger Stand beiseitegelegt' : 'Backup importiert (bisheriger Stand konnte nicht beiseitegelegt werden)')
+      if (lastSaveOk()) toast((r.kept ? 'Backup importiert – bisheriger Stand beiseitegelegt' : 'Backup importiert (bisheriger Stand konnte nicht beiseitegelegt werden)')
           + (r.ownProfile ? '. Die Sicherung stammt von jemand anderem – dein Profil bleibt.' : ''), r.ownProfile ? 6000 : 2200);
       route();
-    } catch (err) { toast(err.message || 'Import fehlgeschlagen'); }
+    } catch (err) { toast(err.message || 'Import fehlgeschlagen', 6000, true); }
   };
   const undo = $('#undoImp');
   if (undo) undo.onclick = () => {
     if (!confirm(`Stand vom ${fmtDate(prev.saved)} zurückholen? Der jetzige Stand wird dafür beiseitegelegt – du kannst also wieder zurück.`)) return;
-    toast(restorePrevious() ? 'Stand zurückgeholt' : 'Zurückholen fehlgeschlagen');
+    try { toast(restorePrevious() ? 'Stand zurückgeholt' : 'Zurückholen fehlgeschlagen'); } catch (err) { toast(err.message, 6000, true); return; }
     route();
   };
   $('#expCho').onclick = () => {
@@ -1458,8 +1523,45 @@ function viewSettings() {
   $('#seedReset').onclick = () => { if (confirm('Soundvorschläge der Start-Songs zurücksetzen? Eigene Änderungen an diesen Sounds gehen verloren.')) { const r = refreshSeeds({ overwriteSounds: true }); toast(`${r.updated} Song(s) zurückgesetzt`); } };
 }
 
+/** Karte zum Retten unlesbarer Daten (Einstellungen). */
+function rescueHtml() {
+  if (storageProblem() === 'broken') {
+    return `<div class="card stack rescue"><b>Unlesbare Daten retten</b>
+      <p class="small muted" style="margin:0">1. Speichere die Rettungsdatei und hebe sie auf, vielleicht lässt sich daraus noch etwas holen.<br>
+        2. Spiele dann deine letzte Sicherung mit „Backup importieren“ ein. Ohne Sicherung kannst du mit den Startdaten neu beginnen.</p>
+      <div class="row"><button class="btn primary" id="rescueSave">Rettungsdatei speichern</button>
+        <button class="btn danger" id="rescueFresh">Mit Startdaten neu beginnen</button></div></div>`;
+  }
+  if (hasRescue()) {
+    return `<div class="card stack rescue"><b>Aufgehobener unlesbarer Stand</b>
+      <p class="small muted" style="margin:0">Er belegt Speicherplatz. Lösche ihn erst, wenn wieder alles da ist.</p>
+      <div class="row"><button class="btn" id="rescueSave">Rettungsdatei speichern</button>
+        <button class="btn danger" id="rescueDel">Löschen</button></div></div>`;
+  }
+  return '';
+}
+function bindRescue() {
+  const on = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
+  on('#rescueSave', () => {
+    const t = rescueText();
+    if (t !== null) download(`soultape-rettung-${new Date().toISOString().slice(0, 10)}.txt`, t);
+  });
+  on('#rescueFresh', () => {
+    if (!confirm('Mit den Startdaten neu beginnen? Der unlesbare Stand wird aufgehoben.')) return;
+    try { if (startOver()) toast('Neu begonnen, der alte Stand ist aufgehoben'); } catch (err) { toast(err.message, 6000, true); return; }
+    route();
+  });
+  on('#rescueDel', () => {
+    if (!confirm('Den unlesbaren Stand endgültig löschen? Lade ihn vorher als Rettungsdatei herunter, wenn du nicht sicher bist.')) return;
+    deleteRescue(); route();
+  });
+}
+
 // ---------- Router ----------
 function route() {
+  // Hat ein anderes Fenster gespeichert? Beim Wechsel der Ansicht ist der sichere Moment zum Übernehmen
+  checkStored();
+  adoptStored();
   const h = location.hash || '#/';
   const [, view, arg] = h.split('/');
   if (view !== 'song') { keepAwake(false); stopMetro(); document.body.classList.remove('metro-bottom'); }
@@ -1476,6 +1578,11 @@ function route() {
   return viewSongs();
 }
 window.addEventListener('hashchange', route);
+whenSaveChanges((ok) => (ok ? showProblem() : saveWarning()));
+window.addEventListener('storage', otherWindow);
+window.addEventListener('pageshow', otherWindow);
+window.addEventListener('focus', otherWindow);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') otherWindow(); });
 route();
 
 // ---------- Offline-Betrieb ----------

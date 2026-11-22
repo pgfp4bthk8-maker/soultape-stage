@@ -20,36 +20,168 @@ function fresh() {
   };
 }
 
+// ---------- Speicherschutz (seit 0.1.30) ----------
+// Zwei Grundsätze: 1. Was die App nicht lesen kann, überschreibt sie nicht.
+//                  2. Ein Fenster mit altem Stand schreibt nicht über den neueren eines anderen Fensters.
+// seen    = der Speicherinhalt, den dieses Fenster zuletzt gelesen oder geschrieben hat (Rohtext)
+// blocked = 'broken' (Inhalt unlesbar) | 'access' (Speicher nicht erreichbar)
+// stale   = ein anderes Fenster hat Songs oder Listen geändert; gespeichert wird erst nach adoptStored()
+const RESCUE = 'soultape-stage-unlesbar';
+const WINDOW_SETTINGS = ['mode', 'navList'];   // gehören zum Fenster und werden von anderen nicht übernommen
+let blocked = null, stale = false, saveOk = true, seen = null, seenData = '', seenSettings = {};
+let onSaveChange = () => {};
+
+const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+const validSongs = (a) => Array.isArray(a) && a.every((s) => isObj(s) && typeof s.title === 'string');
+const dataOf = (d) => JSON.stringify([d.songs, d.lists]);
+
+/** Rohtext → Zustand. null, wenn er unlesbar ist. */
+function parseState(raw) {
+  try {
+    const d = JSON.parse(raw);
+    if (!isObj(d) || !validSongs(d.songs)) return null;
+    if (!Array.isArray(d.lists)) d.lists = [];
+    if (!d.lists.every((l) => isObj(l) && Array.isArray(l.items))) return null;
+    d.settings = { notation: 'de', fontSize: 22, mode: 'prep', ...(d.settings || {}) };
+    return d;
+  } catch (e) { return null; }
+}
+function remember(raw, d) {
+  seen = raw;
+  seenData = dataOf(d);
+  seenSettings = clone(d.settings);
+}
+
 export const state = load();
 
 function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const d = JSON.parse(raw);
-      if (d && Array.isArray(d.songs)) {
-        if (!Array.isArray(d.lists)) d.lists = [];
-        d.settings = { notation: 'de', fontSize: 22, mode: 'prep', ...(d.settings || {}) };
-        return d;
-      }
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) { blocked = 'access'; }
+  let d = raw === null ? null : parseState(raw);
+  if (!d) {
+    d = fresh();
+    if (raw !== null) {
+      blocked = 'broken';
+      // War die App auf der Bühne, startet sie auch mit unlesbaren Daten dort – ohne Hinweise
+      if (/"mode":\s*"stage"/.test(raw)) d.settings.mode = 'stage';
     }
-  } catch (e) { /* Speicher nicht verfügbar → mit Startdaten weiter */ }
-  return fresh();
+  }
+  remember(raw, d);
+  return d;
 }
 
-let saveOk = true;
-export function save() {
-  try {
-    state.noMax = state.songs.reduce((m, s) => Math.max(m, s.no || 0), state.noMax || 0);
-    localStorage.setItem(KEY, JSON.stringify(state));
-    saveOk = true;
-    trackBackup();
-  } catch (e) {
-    saveOk = false;
+/**
+ * Schaut nach, ob ein anderes Fenster gespeichert hat.
+ * Nur Einstellungen geändert → still übernehmen. Songs oder Listen geändert → stale.
+ */
+export function checkStored() {
+  let raw;
+  try { raw = localStorage.getItem(KEY); } catch (e) { blocked = 'access'; return; }
+  if (blocked === 'access') {
+    // Speicher ist wieder erreichbar, der echte Stand ist aber noch nicht geladen
+    if (raw === null) blocked = null;
+    else if (parseState(raw)) { blocked = null; stale = true; }
+    else { blocked = 'broken'; seen = raw; }
+    return;
   }
-  return saveOk;
+  if (stale || raw === seen) return;
+  if (raw === null) { seen = null; return; }   // Speicher ist leer, es gibt nichts zu überschreiben
+  const d = parseState(raw);
+  if (!d) { blocked = 'broken'; seen = raw; return; }
+  if (blocked) { blocked = null; stale = true; return; }
+  const data = dataOf(d);
+  if (data !== seenData && data !== dataOf(state)) { stale = true; return; }
+  for (const k of new Set([...Object.keys(d.settings), ...Object.keys(seenSettings)])) {
+    if (WINDOW_SETTINGS.includes(k)) continue;
+    if (JSON.stringify(state.settings[k]) !== JSON.stringify(seenSettings[k])) continue;   // hier geändert → bleibt
+    if (d.settings[k] === undefined) delete state.settings[k]; else state.settings[k] = d.settings[k];
+  }
+  state.noMax = Math.max(state.noMax || 0, d.noMax || 0);
+  remember(raw, d);
+}
+
+/** Übernimmt den Stand des anderen Fensters. Nur aufrufen, wenn danach die Ansicht neu gezeichnet wird. */
+export function adoptStored() {
+  if (!stale) return false;
+  let raw;
+  try { raw = localStorage.getItem(KEY); } catch (e) { blocked = 'access'; stale = false; return false; }
+  stale = false;
+  if (raw === null) { seen = null; return false; }
+  const d = parseState(raw);
+  if (!d) { blocked = 'broken'; seen = raw; return false; }
+  remember(raw, d);
+  const { settings, ...rest } = d;
+  const mine = {};
+  for (const k of WINDOW_SETTINGS) mine[k] = state.settings[k];
+  Object.assign(state, rest);
+  for (const k of Object.keys(state.settings)) delete state.settings[k];
+  Object.assign(state.settings, settings, mine);
+  saveOk = true;
+  return true;
+}
+
+/** Was steht dem Speichern im Weg? 'broken' | 'access' | 'stale' | 'failed' | null */
+export const storageProblem = () => blocked || (stale ? 'stale' : (saveOk ? null : 'failed'));
+/** Vor größeren Aktionen (Import, Paket) fragen, bevor etwas verändert wird. */
+export function canSave() {
+  checkStored();
+  return !blocked && !stale;
+}
+/** fn(ok): bei jedem fehlgeschlagenen Speichern und beim ersten, das danach wieder klappt – egal, von wo gespeichert wurde. */
+export function whenSaveChanges(fn) { onSaveChange = fn; }
+
+export function save() {
+  checkStored();
+  let ok = false;
+  if (!blocked && !stale) {
+    try {
+      state.noMax = state.songs.reduce((m, s) => Math.max(m, s.no || 0), state.noMax || 0);
+      const raw = JSON.stringify(state);
+      localStorage.setItem(KEY, raw);
+      remember(raw, state);
+      ok = true;
+    } catch (e) { /* Speicher voll oder gesperrt */ }
+  }
+  const wasOk = saveOk;
+  saveOk = ok;
+  if (ok) trackBackup();
+  if (!ok || !wasOk) onSaveChange(ok);
+  return ok;
 }
 export const lastSaveOk = () => saveOk;
+
+// ---------- Unlesbaren Stand retten ----------
+let rescued = null;   // der Rohtext, der in dieser Sitzung als Datei gespeichert wurde
+const readRescue = () => { try { return localStorage.getItem(RESCUE); } catch (e) { return null; } };
+export const hasRescue = () => !!readRescue();
+/** Rohtext für die Rettungsdatei: der gerade unlesbare, sonst der aufgehobene Stand. */
+export function rescueText() {
+  if (blocked !== 'broken') return readRescue();
+  rescued = seen;
+  return seen;
+}
+export function deleteRescue() {
+  try { localStorage.removeItem(RESCUE); } catch (e) { /* egal */ }
+}
+/** Gibt das Überschreiben erst frei, wenn der unlesbare Stand aufgehoben oder als Datei gespeichert ist. */
+function releaseBroken() {
+  if (stale) throw new Error('In einem anderen Fenster wurde etwas geändert. Bitte erst aktualisieren.');
+  if (!blocked) return;
+  if (blocked === 'access') throw new Error('Der Speicher ist nicht erreichbar. Bitte die App schließen und neu öffnen.');
+  const old = readRescue();
+  let kept = old === seen;
+  if (old === null) {
+    try { localStorage.setItem(RESCUE, seen); kept = true; } catch (e) { /* kein Platz */ }
+  }
+  if (!kept && rescued !== seen) throw new Error('Bitte zuerst die Rettungsdatei speichern, dann noch einmal versuchen.');
+  blocked = null;
+}
+/** Beginnt nach unlesbaren Daten mit den Startdaten. Der alte Stand ist dann aufgehoben. */
+export function startOver() {
+  checkStored();
+  releaseBroken();
+  return save();
+}
 
 export const getSong = (id) => state.songs.find((s) => s.id === id);
 
@@ -231,11 +363,16 @@ function hash(t) {
 const fingerprint = () => hash(JSON.stringify([state.songs, state.lists]));
 
 let meta = {};
-try { meta = JSON.parse(localStorage.getItem(META)) || {}; } catch (e) { meta = {}; }
+// Jedes Mal frisch lesen: Ein anderes Fenster kann inzwischen gesichert haben
+function readMeta() {
+  try { meta = JSON.parse(localStorage.getItem(META)) || {}; } catch (e) { /* bisherigen Stand behalten */ }
+}
+readMeta();
 const saveMeta = () => { try { localStorage.setItem(META, JSON.stringify(meta)); } catch (e) { /* egal */ } };
 
 /** Nach jedem Speichern: gibt es Änderungen, die noch in keiner Sicherung stecken – und seit wann? */
 function trackBackup() {
+  readMeta();
   const dirty = fingerprint() !== meta.mark;
   if (!dirty && meta.dirtySince) { meta.dirtySince = null; saveMeta(); }
   else if (dirty && !meta.dirtySince) { meta.dirtySince = new Date().toISOString(); saveMeta(); }
@@ -252,6 +389,7 @@ export function markBackupDone(at) {
  * level: 'ok' (alles gesichert) | 'warn' (neue Änderungen) | 'alert' (seit BACKUP_DUE_DAYS Tagen ungesichert oder noch nie gesichert)
  */
 export function backupStatus() {
+  readMeta();
   const at = meta.at || null;
   if (at && fingerprint() === meta.mark) return { level: 'ok', at, days: 0 };
   const days = meta.dirtySince ? Math.floor((Date.now() - new Date(meta.dirtySince).getTime()) / 86400000) : 0;
@@ -281,13 +419,17 @@ export function previousInfo() {
 /** Tauscht den aktuellen Stand gegen den beiseitegelegten – der aktuelle wird dabei selbst beiseitegelegt. */
 export function restorePrevious() {
   const d = readPrevious();
-  if (!d) return false;
-  const cur = snapshotNow();
+  if (!d || !validSongs(d.songs)) return false;
+  checkStored();
+  const wasBroken = !!blocked;
+  releaseBroken();
+  // Nach unlesbaren Daten zeigt die App nur Startdaten – die lohnt es nicht beiseitezulegen
+  const cur = wasBroken ? null : snapshotNow();
   state.songs = d.songs;
   state.lists = Array.isArray(d.lists) ? d.lists : [];
   state.seedVersion = d.seedVersion || state.seedVersion;
   state.settings.navList = null;
-  try { localStorage.setItem(PREV, cur); } catch (e) { /* dann eben ohne Rückweg */ }
+  if (cur) { try { localStorage.setItem(PREV, cur); } catch (e) { /* dann eben ohne Rückweg */ } }
   return save();
 }
 
@@ -299,11 +441,15 @@ export const DEVICE_SETTINGS = ['layout', 'numbering', 'mode', 'fontSize', 'page
 
 export function importBackup(text) {
   const d = JSON.parse(text);
-  if (!d || !Array.isArray(d.songs)) throw new Error('Das ist keine gültige Sicherungsdatei.');
+  if (!d || !validSongs(d.songs) || (Array.isArray(d.lists) && !d.lists.every((l) => isObj(l) && Array.isArray(l.items)))) throw new Error('Das ist keine gültige Sicherungsdatei.');
   // Ein Song-Paket enthält nur einzelne Songs – als Sicherung eingespielt würde es alles andere löschen
   if (d.type === 'paket') throw new Error('Das ist ein Song-Paket, keine Sicherung. Pakete spielst du unter „Songs teilen“ ein.');
+  checkStored();
+  const wasBroken = !!blocked;
+  releaseBroken();
   let kept = true;
-  try { localStorage.setItem(PREV, snapshotNow()); } catch (e) { kept = false; }
+  // Der unlesbare Stand ist schon gerettet; die Startdaten sollen einen guten beiseitegelegten Stand nicht verdrängen
+  if (!wasBroken) { try { localStorage.setItem(PREV, snapshotNow()); } catch (e) { kept = false; } }
   state.songs = d.songs;
   if (Array.isArray(d.lists)) state.lists = d.lists;   // alte Sicherungen ohne Listen lassen die Listen unberührt
   // Sicherung einer anderen Person (z. B. die Sicherung des Keyboarders beim Kollegen): eigenes Profil und Nummernvergabe behalten
@@ -320,8 +466,8 @@ export function importBackup(text) {
   state.seedVersion = d.seedVersion || state.seedVersion;
   state.noMax = Math.max(state.noMax || 0, d.noMax || 0);
   state.settings.navList = null;
-  save();
-  markBackupDone(d.exported);   // die Daten entsprechen jetzt genau der eingespielten Sicherung
+  // Nur wenn es wirklich gespeichert ist, entspricht das Gerät der eingespielten Sicherung
+  if (save()) markBackupDone(d.exported);
   return { kept, ownProfile };
 }
 
